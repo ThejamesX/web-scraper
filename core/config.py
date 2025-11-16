@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     # Scraper Configuration
     scraper_timeout: int = 30000
     scraper_headless: bool = True
+    scraper_mock_mode: bool = False  # Enable mock data when scraping fails
     
     model_config = SettingsConfigDict(
         env_file=".env",
