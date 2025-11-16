@@ -1,33 +1,132 @@
-# PriceScout API
+# PriceScout - Smart Price Tracking Platform
 
-A robust, scalable FastAPI backend service for e-commerce product search and price tracking. Built with modern async Python tools including FastAPI, Playwright, and SQLAlchemy.
+A complete e-commerce price tracking solution with a modern web UI and robust FastAPI backend. Track prices across multiple e-commerce sites (currently supports Alza.cz), get notified when prices drop, and organize products into categories.
 
-## Features
+## 🌟 Features
 
-- **Product Search**: Search e-commerce sites (currently supports Alza.cz) for products and get top 10 results
+### Frontend (Web UI)
+- **Modern Dashboard**: View all tracked products with real-time filtering (All, On Sale, Triggered Alerts)
+- **Product Search**: Search e-commerce sites and track products with one click
+- **Price History Charts**: Interactive visualizations showing price trends and sale periods
+- **Category Management**: Organize products into custom categories (e.g., "Soundbars", "Laptops")
+- **Price Alerts**: Set target prices and get visual notifications when reached
+- **Responsive Design**: Works seamlessly on desktop, tablet, and mobile devices
+- **Statistics Dashboard**: View lowest/highest prices, price changes, and sale frequency
+
+### Backend (API)
+- **Product Search**: Search e-commerce sites (currently supports Alza.cz) for products
 - **Price Tracking**: Track product URLs and monitor price changes over time
 - **Sale Detection**: Automatically detect when products are on sale and track original prices
-- **Price Alerts**: Set custom price alerts and get notified when prices drop below your target
-- **Historical Sale Tracking**: Track when products were on sale, not just current status
+- **Price Alerts**: Set custom price alerts and get notified when prices drop
+- **Historical Tracking**: Complete price history with sale indicators
 - **Background Jobs**: Automated price checks using APScheduler
-- **Async Architecture**: Built with async/await for high performance
-- **Comprehensive Testing**: Unit tests, integration tests, and API tests
-- **Auto-Generated API Documentation**: Interactive OpenAPI/Swagger docs at `/docs`
+- **RESTful API**: Well-documented API endpoints with OpenAPI/Swagger docs
 
-## Technology Stack
+## 🎨 Design System
 
-- **FastAPI**: High-performance async web framework
-- **Playwright**: Browser automation for web scraping
-- **SQLAlchemy**: Async ORM for database operations
-- **PostgreSQL/SQLite**: Production/development databases
-- **Pydantic**: Data validation and settings management
-- **Pytest**: Testing framework with async support
-- **APScheduler**: Background task scheduling
+The frontend follows a comprehensive design system:
+- **Clean, Modern UI**: Professional design with focus on clarity
+- **Consistent Styling**: Design tokens for colors, spacing, and typography
+- **Accessibility**: WCAG 2.1 Level AA compliant
+- **Visual Hierarchy**: Clear indication of sales, alerts, and price changes
 
-## Project Structure
+## 🚀 Quick Start
+
+### Prerequisites
+- Python 3.8+
+- Modern web browser (Chrome, Firefox, Safari, Edge)
+
+### 1. Clone the Repository
+
+```bash
+git clone <repository-url>
+cd web-scraper
+```
+
+### 2. Set Up Python Environment
+
+```bash
+python -m venv venv
+
+# On Linux/Mac:
+source venv/bin/activate
+
+# On Windows:
+venv\Scripts\activate
+```
+
+### 3. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+playwright install chromium
+```
+
+### 4. Configure Environment
+
+```bash
+cp .env.example .env
+# Edit .env if needed (default SQLite config works out of the box)
+```
+
+### 5. Start the Application
+
+```bash
+uvicorn main:app --reload
+```
+
+### 6. Access the Application
+
+- **Web UI**: http://localhost:8000/
+- **API Documentation**: http://localhost:8000/docs
+- **Alternative Docs**: http://localhost:8000/redoc
+
+## 📱 Using the Web UI
+
+### Dashboard
+1. View all tracked products with statistics
+2. Filter by "All", "On Sale", or "Triggered Alerts"
+3. Click on any product to see detailed information
+
+### Search for Products
+1. Navigate to the "Search" tab
+2. Select the e-commerce site (Alza.cz)
+3. Enter your search query (e.g., "soundbar", "laptop")
+4. Click "Track" on products you want to monitor
+
+### Product Details
+1. Click on any product card
+2. View interactive price history chart
+3. See statistics (lowest/highest prices, sale frequency)
+4. Set price alerts for notifications
+
+### Categories
+1. Navigate to "Categories" tab
+2. Create custom categories (e.g., "Electronics", "Soundbars")
+3. Assign products to categories for organization
+4. Filter products by category
+
+### Price Alerts
+1. Go to any product detail page
+2. Enter your target price
+3. Click "Set Alert"
+4. Get visual notification when price reaches your target
+
+## 🏗️ Project Structure
 
 ```
 web-scraper/
+├── frontend/           # Web UI (HTML/CSS/JavaScript)
+│   ├── index.html     # Main application page
+│   ├── css/
+│   │   ├── main.css   # Layout and general styles
+│   │   └── components.css  # Component-specific styles
+│   ├── js/
+│   │   ├── api.js     # Backend API client
+│   │   ├── app.js     # Main application logic
+│   │   ├── categories.js  # Category management
+│   │   └── utils.js   # Utility functions
+│   └── README.md      # Frontend documentation
 ├── core/               # Configuration and settings
 │   ├── __init__.py
 │   └── config.py
@@ -54,11 +153,39 @@ web-scraper/
 │   ├── test_api.py     # API endpoint tests
 │   ├── test_logic.py   # Business logic tests
 │   └── test_scraper.py # Integration tests
+├── design-tokens.css   # Design system tokens
+├── DESIGN_SYSTEM.md    # Complete design specification
+├── FRONTEND_INTEGRATION_GUIDE.md  # API integration guide
+├── COMPONENT_EXAMPLES.md  # Component code examples
 ├── main.py             # FastAPI application entry point
 ├── requirements.txt    # Python dependencies
 ├── .env.example        # Example environment variables
 └── README.md           # This file
 ```
+
+## 🛠️ Technology Stack
+
+### Frontend
+- **Vanilla JavaScript** - No framework dependencies for easy migration
+- **Chart.js** - Interactive price history charts
+- **CSS Custom Properties** - Design tokens for consistent styling
+- **LocalStorage** - Client-side category management
+
+### Backend
+- **FastAPI** - High-performance async web framework
+- **Playwright** - Browser automation for web scraping
+- **SQLAlchemy** - Async ORM for database operations
+- **PostgreSQL/SQLite** - Production/development databases
+- **Pydantic** - Data validation and settings management
+- **APScheduler** - Background task scheduling
+
+## 📚 Documentation
+
+- **[Frontend README](frontend/README.md)** - Web UI documentation and development guide
+- **[Design System](DESIGN_SYSTEM.md)** - Complete visual design and UX blueprint
+- **[Integration Guide](FRONTEND_INTEGRATION_GUIDE.md)** - API integration documentation
+- **[Component Examples](COMPONENT_EXAMPLES.md)** - Ready-to-use component code
+- **[Quick Start Guide](FRONTEND_QUICK_START.md)** - Get started quickly with frontend
 
 ## Setup Instructions
 
@@ -101,9 +228,257 @@ Copy the example environment file and configure it:
 cp .env.example .env
 ```
 
-Edit `.env` file with your settings:
+Edit `.env` file with your settings. For development, the default SQLite configuration works out of the box:
 
 ```env
+# Development configuration (default)
+DATABASE_URL=sqlite+aiosqlite:///./pricescout.db
+
+# For production, use PostgreSQL
+# DATABASE_URL=postgresql+asyncpg://user:password@localhost/pricescout
+```
+
+## Running the Application
+
+### Start the Server
+
+```bash
+uvicorn main:app --reload
+```
+
+The application will be available at:
+- **Web UI**: http://localhost:8000/
+- **API Documentation**: http://localhost:8000/docs
+- **Alternative API Docs**: http://localhost:8000/redoc
+
+### First Time Setup
+
+1. Open http://localhost:8000/ in your browser
+2. Navigate to the "Search" tab
+3. Search for a product (e.g., "laptop")
+4. Click "Track" on products you want to monitor
+5. Go back to the Dashboard to see your tracked products
+
+## API Usage Examples
+
+The backend provides a RESTful API. Here are some common operations:
+
+### Search for Products
+
+```bash
+curl -X POST "http://localhost:8000/search" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "site": "alza",
+    "query": "Samsung Galaxy S23"
+  }'
+```
+
+### Track a Product
+
+```bash
+curl -X POST "http://localhost:8000/track" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://www.alza.cz/samsung-galaxy-s23-d7654321.htm"
+  }'
+```
+
+### Set Price Alert
+
+```bash
+curl -X PUT "http://localhost:8000/track/1/alert" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "target_price": 20000.00
+  }'
+```
+
+### Get All Tracked Products
+
+```bash
+curl -X GET "http://localhost:8000/track"
+```
+
+### Get Price History
+
+```bash
+curl -X GET "http://localhost:8000/track/product/1/history"
+```
+
+For complete API documentation, visit http://localhost:8000/docs when the server is running.
+
+## Key Features Explained
+
+### Price Tracking
+The system automatically checks prices for all tracked products every 4 hours (configurable). When a price changes:
+1. A new price history entry is created
+2. Sale status is detected and recorded
+3. Price alerts are checked and triggered if conditions are met
+
+### Sale Detection
+The scraper automatically detects when products are on sale by:
+- Looking for strikethrough/crossed-out original prices
+- Detecting sale badges and discount indicators
+- Recording both current and original prices
+
+### Category Organization
+Categories are stored locally in your browser using LocalStorage:
+- Create unlimited custom categories
+- Assign products to multiple categories
+- Filter and view products by category
+- Categories persist across browser sessions
+
+### Price Alerts
+Set target prices for any tracked product:
+- Enter your desired price threshold
+- System checks prices automatically
+- Visual notification when price reaches or drops below target
+- Alert triggers once until cleared and reset
+
+## Development
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run specific test types
+pytest tests/test_api.py  # API tests only
+pytest tests/test_scraper.py -m slow  # Integration tests
+
+# Run with coverage
+pytest --cov=. --cov-report=html
+```
+
+### Code Quality
+
+The codebase follows these principles:
+- **Type hints**: All functions use proper type annotations
+- **Async/await**: Consistent async patterns throughout
+- **Separation of concerns**: Clear separation between API, business logic, and data layers
+- **Design system**: Comprehensive design tokens for UI consistency
+
+### Adding Support for New E-commerce Sites
+
+To add support for a new site:
+
+1. Add scraping logic in `scraper/service.py`:
+   ```python
+   async def _fetch_<sitename>_product_details(self, page: Page) -> dict:
+       # Implement scraping logic
+       pass
+   
+   async def _search_<sitename>(self, query: str, limit: int = 10):
+       # Implement search logic
+       pass
+   ```
+
+2. Update `fetch_product_details()` and `search_site()` to handle the new site
+
+3. Add tests in `tests/test_scraper.py`
+
+## Production Deployment
+
+### Database Migration
+
+For production, use PostgreSQL:
+
+1. Update `.env`:
+   ```env
+   DATABASE_URL=postgresql+asyncpg://user:password@localhost/pricescout
+   ```
+
+2. Install Alembic for migrations:
+   ```bash
+   pip install alembic
+   alembic init alembic
+   ```
+
+### Server Configuration
+
+For production, use multiple workers:
+
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+```
+
+### Environment Variables
+
+Production environment variables:
+- `DATABASE_URL`: PostgreSQL connection string
+- `SCRAPER_HEADLESS`: Set to `true` for production
+- `PRICE_CHECK_INTERVAL_HOURS`: Adjust based on your needs (default: 4)
+
+## Troubleshooting
+
+### Frontend Not Loading
+- Ensure you're accessing http://localhost:8000/ (not http://127.0.0.1:8000/)
+- Check that the `frontend/` directory exists and contains `index.html`
+- Clear browser cache and reload
+
+### Products Not Loading in Dashboard
+- Open browser console (F12) to check for errors
+- Verify backend is running and accessible
+- Check CORS settings in `main.py`
+
+### Search Not Working
+- Ensure Playwright browsers are installed: `playwright install chromium`
+- Check internet connectivity
+- Verify the e-commerce site is accessible
+- Try with `SCRAPER_HEADLESS=false` to debug
+
+### Price Updates Not Happening
+- Check that the scheduler is running (you should see "Scheduler started" in logs)
+- Adjust `PRICE_CHECK_INTERVAL_HOURS` if needed
+- Check database for price history entries
+
+## Browser Compatibility
+
+The frontend works on all modern browsers:
+- Chrome/Edge (latest)
+- Firefox (latest)
+- Safari (latest)
+- Opera (latest)
+
+## Contributing
+
+Contributions are welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Add tests for new functionality
+4. Ensure all tests pass
+5. Submit a pull request
+
+## Future Enhancements
+
+Potential features to add:
+- [ ] Support for more e-commerce sites (Smarty.cz, Amazon, etc.)
+- [ ] Email/push notifications for price alerts
+- [ ] User authentication and multi-user support
+- [ ] Export data to CSV/Excel
+- [ ] Price comparison across multiple sites
+- [ ] Historical price predictions using ML
+- [ ] Wishlist sharing functionality
+- [ ] Mobile app (React Native/Flutter)
+- [ ] Browser extension for quick tracking
+
+## License
+
+[Your License Here]
+
+## Support
+
+For issues, questions, or contributions:
+- Check the [Documentation](#documentation)
+- Review the [Troubleshooting](#troubleshooting) section
+- Open an issue on GitHub
+- Refer to the API docs at http://localhost:8000/docs
+
+---
+
+**Built with ❤️ using FastAPI, Playwright, and modern web technologies.**
 # For development (SQLite)
 DATABASE_URL=sqlite+aiosqlite:///./pricescout.db
 

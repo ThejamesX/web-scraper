@@ -2,7 +2,11 @@
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from pathlib import Path
 
 from core.config import settings
 from db import init_db
@@ -54,24 +58,43 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for development
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Include routers
 app.include_router(search_router)
 app.include_router(track_router)
+
+# Mount static files
+frontend_path = Path(__file__).parent / "frontend"
+if frontend_path.exists():
+    app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
 
 
 @app.get("/", tags=["root"])
 async def root():
     """
-    Root endpoint providing API information.
+    Root endpoint - serves the frontend UI.
     
     Returns:
-        dict: API information
+        FileResponse: Frontend HTML page
     """
+    frontend_file = Path(__file__).parent / "frontend" / "index.html"
+    if frontend_file.exists():
+        return FileResponse(frontend_file)
+    
     return {
         "message": "Welcome to PriceScout API",
         "version": settings.api_version,
         "docs_url": "/docs",
-        "redoc_url": "/redoc"
+        "redoc_url": "/redoc",
+        "ui_url": "/static/index.html"
     }
 
 
