@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PriceScout - Smart Price Tracking</title>
+    <link rel="stylesheet" href="/design-tokens.css">
+    <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="stylesheet" href="/static/css/components.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1 class="logo">PriceScout</h1>
+            </div>
+            <div class="nav-links">
+                <a href="#" class="nav-link active" data-page="dashboard">Dashboard</a>
+                <a href="#" class="nav-link" data-page="search">Search</a>
+                <a href="#" class="nav-link" data-page="categories">Categories</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main class="main-container">
+        <!-- Dashboard Page -->
+        <div id="dashboard-page" class="page active">
+            <div class="container">
+                <div class="page-header">
+                    <h2>Tracked Products</h2>
+                    <div class="page-actions">
+                        <button class="btn-primary" onclick="navigateTo('search')">
+                            <span>➕</span> Search Products
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter Tabs -->
+                <div class="tabs">
+                    <button class="tab active" data-filter="all">All Products</button>
+                    <button class="tab" data-filter="sale">On Sale</button>
+                    <button class="tab" data-filter="alert">Triggered Alerts</button>
+                </div>
+
+                <!-- Stats Overview -->
+                <div class="stats-grid" id="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Tracked</div>
+                        <div class="stat-value" id="stat-total">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">On Sale</div>
+                        <div class="stat-value" id="stat-sale">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Active Alerts</div>
+                        <div class="stat-value" id="stat-alerts">0</div>
+                    </div>
+                </div>
+
+                <!-- Product Grid -->
+                <div id="products-container">
+                    <div class="loading-spinner" id="loading-spinner">
+                        <div class="spinner"></div>
+                        <p>Loading products...</p>
+                    </div>
+                    <div class="product-grid" id="product-grid"></div>
+                    <div class="empty-state" id="empty-state" style="display: none;">
+                        <div class="empty-icon">📦</div>
+                        <h3>No Products Tracked Yet</h3>
+                        <p>Start tracking products to monitor prices and get alerts</p>
+                        <button class="btn-primary" onclick="navigateTo('search')">Search Products</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Page -->
+        <div id="search-page" class="page">
+            <div class="container">
+                <div class="page-header">
+                    <h2>Search Products</h2>
+                </div>
+
+                <!-- Search Form -->
+                <div class="search-section">
+                    <form id="search-form" class="search-form">
+                        <div class="form-group">
+                            <label for="search-site">E-commerce Site</label>
+                            <select id="search-site" class="form-input" required>
+                                <option value="alza">Alza.cz</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="search-query">Search Query</label>
+                            <input type="text" id="search-query" class="form-input" 
+                                   placeholder="e.g., laptop, soundbar, Samsung Galaxy" required>
+                        </div>
+                        <button type="submit" class="btn-primary btn-large">
+                            🔍 Search
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Search Results -->
+                <div id="search-results-container" style="display: none;">
+                    <h3>Search Results</h3>
+                    <div class="search-results-grid" id="search-results"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Detail Page -->
+        <div id="product-detail-page" class="page">
+            <div class="container">
+                <button class="btn-secondary mb-lg" onclick="navigateTo('dashboard')">
+                    ← Back to Dashboard
+                </button>
+                
+                <div id="product-detail-content"></div>
+            </div>
+        </div>
+
+        <!-- Categories Page -->
+        <div id="categories-page" class="page">
+            <div class="container">
+                <div class="page-header">
+                    <h2>Product Categories</h2>
+                    <button class="btn-primary" onclick="showCategoryModal()">
+                        ➕ New Category
+                    </button>
+                </div>
+
+                <div id="categories-grid" class="categories-grid"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Category Modal -->
+    <div id="category-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create Category</h3>
+                <button class="modal-close" onclick="closeCategoryModal()">✕</button>
+            </div>
+            <form id="category-form">
+                <div class="form-group">
+                    <label for="category-name">Category Name</label>
+                    <input type="text" id="category-name" class="form-input" 
+                           placeholder="e.g., Soundbars, Laptops" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeCategoryModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">Create Category</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/categories.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
