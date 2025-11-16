@@ -38,15 +38,7 @@ This document outlines potential improvements, new features, and enhancements fo
 - [ ] Role-based access control (admin, user)
 - [ ] Shareable wishlists between users
 
-### 4. Price Prediction & Analytics
-**Priority: Medium**
-- [ ] Historical price trend analysis
-- [ ] Machine learning-based price prediction
-- [ ] Best time to buy recommendations
-- [ ] Price drop probability indicators
-- [ ] Seasonal price pattern detection
-
-### 5. Advanced Search & Filtering
+### 4. Advanced Search & Filtering
 **Priority: Medium**
 - [ ] Advanced search filters (price range, brand, category)
 - [ ] Search history and saved searches
@@ -54,7 +46,7 @@ This document outlines potential improvements, new features, and enhancements fo
 - [ ] Cross-site price comparison for same products
 - [ ] Product matching across different e-shops
 
-### 6. Export & Reporting
+### 5. Export & Reporting
 **Priority: Low**
 - [ ] Export tracked products to CSV/Excel
 - [ ] Export price history data
@@ -62,19 +54,12 @@ This document outlines potential improvements, new features, and enhancements fo
 - [ ] API for third-party integrations
 - [ ] Webhook support for external systems
 
-### 7. Browser Extension
+### 6. Browser Extension
 **Priority: Medium**
 - [ ] Chrome/Firefox extension for quick product tracking
 - [ ] Price overlay on product pages
 - [ ] One-click tracking from any supported site
 - [ ] Price alert notifications in browser
-
-### 8. Mobile Application
-**Priority: Medium**
-- [ ] React Native or Flutter mobile app
-- [ ] Push notifications on mobile
-- [ ] Offline mode with data sync
-- [ ] Barcode/QR code scanning for product lookup
 
 ---
 
@@ -309,23 +294,11 @@ This document outlines potential improvements, new features, and enhancements fo
 
 ## Long-term Vision
 
-### AI-Powered Features
-- Smart product recommendations based on tracking history
-- Automatic price negotiation suggestions
+### Advanced Analytics
+- Historical price trend analysis with interactive visualizations
 - Anomaly detection for unusual price patterns
-- Natural language query interface ("Find me a laptop under $1000")
-
-### Community Features
-- User reviews and ratings for tracked products
-- Price history sharing between users
-- Community-driven product recommendations
-- Discussion forums for specific products
-
-### Marketplace Integration
-- Direct purchase integration with e-commerce sites
-- Affiliate link monetization
-- Sponsored product listings
-- Marketplace API for third-party developers
+- Seasonal price pattern detection and insights
+- Best time to buy recommendations based on historical data
 
 ---
 
@@ -335,8 +308,8 @@ This document outlines potential improvements, new features, and enhancements fo
 |----------|-----------|----------|
 | **Critical** | 1-2 months | Multi-site support, Email notifications, Caching |
 | **High** | 3-6 months | User authentication, Browser extension, Performance optimizations |
-| **Medium** | 6-12 months | Mobile app, ML predictions, Advanced analytics |
-| **Low** | 12+ months | Community features, Marketplace integration |
+| **Medium** | 6-12 months | Advanced analytics, Enhanced data visualization |
+| **Low** | 12+ months | Advanced search features, Export capabilities |
 
 ---
 

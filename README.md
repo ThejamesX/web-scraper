@@ -461,9 +461,8 @@ Potential features to add:
 - [ ] User authentication and multi-user support
 - [ ] Export data to CSV/Excel
 - [ ] Price comparison across multiple sites
-- [ ] Historical price predictions using ML
+- [ ] Historical price trend analysis
 - [ ] Wishlist sharing functionality
-- [ ] Mobile app (React Native/Flutter)
 - [ ] Browser extension for quick tracking
 
 ## License
