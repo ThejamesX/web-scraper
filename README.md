@@ -409,6 +409,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 Production environment variables:
 - `DATABASE_URL`: PostgreSQL connection string
 - `SCRAPER_HEADLESS`: Set to `true` for production
+- `SCRAPER_MOCK_MODE`: Set to `false` for production (use `true` for testing/demo without internet)
 - `PRICE_CHECK_INTERVAL_HOURS`: Adjust based on your needs (default: 4)
 
 ## Troubleshooting
@@ -428,6 +429,7 @@ Production environment variables:
 - Check internet connectivity
 - Verify the e-commerce site is accessible
 - Try with `SCRAPER_HEADLESS=false` to debug
+- **For testing without internet access**: Set `SCRAPER_MOCK_MODE=true` in your `.env` file to use mock data
 
 ### Price Updates Not Happening
 - Check that the scheduler is running (you should see "Scheduler started" in logs)

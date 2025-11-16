@@ -2,7 +2,7 @@
 
 import re
 from typing import Optional
-from playwright.async_api import async_playwright, Browser, Page, Playwright
+from playwright.async_api import async_playwright, Browser, Page, Playwright, Error as PlaywrightError, TimeoutError as PlaywrightTimeoutError
 from core.config import settings
 from api.schemas import SearchResultItem
 
@@ -47,7 +47,20 @@ class ScraperService:
         
         page = await self.browser.new_page()
         try:
-            await page.goto(url, timeout=settings.scraper_timeout)
+            try:
+                await page.goto(url, timeout=settings.scraper_timeout)
+            except PlaywrightError as e:
+                error_msg = str(e)
+                if "ERR_NAME_NOT_RESOLVED" in error_msg or "net::" in error_msg:
+                    # If mock mode is enabled, return mock data
+                    if settings.scraper_mock_mode:
+                        await page.close()
+                        return self._get_mock_product_details(url)
+                    raise ValueError(f"Unable to connect to {url}. The site may be unavailable or network access is restricted.")
+                elif "Timeout" in error_msg or "timeout" in error_msg:
+                    raise ValueError(f"Connection to {url} timed out. Please try again later.")
+                else:
+                    raise ValueError(f"Failed to load product page: {error_msg}")
             
             # Determine which e-shop and use appropriate selectors
             if "alza.cz" in url:
@@ -68,7 +81,10 @@ class ScraperService:
             dict: Dictionary with 'name', 'price', 'is_on_sale', and 'original_price' keys
         """
         # Wait for product name
-        await page.wait_for_selector("h1", timeout=10000)
+        try:
+            await page.wait_for_selector("h1", timeout=10000)
+        except PlaywrightTimeoutError:
+            raise ValueError("Product page did not load properly. Could not find product name.")
         
         # Extract product name
         name_element = await page.query_selector("h1")
@@ -168,7 +184,13 @@ class ScraperService:
             await self.initialize()
         
         if site.lower() == "alza":
-            return await self._search_alza(query, limit)
+            try:
+                return await self._search_alza(query, limit)
+            except ValueError as e:
+                # If mock mode is enabled, return mock data instead of failing
+                if settings.scraper_mock_mode:
+                    return self._get_mock_search_results(query, limit)
+                raise
         else:
             raise ValueError(f"Unsupported site: {site}")
     
@@ -186,17 +208,29 @@ class ScraperService:
         page = await self.browser.new_page()
         try:
             # Navigate to Alza.cz
-            await page.goto("https://www.alza.cz/", timeout=settings.scraper_timeout)
+            try:
+                await page.goto("https://www.alza.cz/", timeout=settings.scraper_timeout)
+            except PlaywrightError as e:
+                error_msg = str(e)
+                if "ERR_NAME_NOT_RESOLVED" in error_msg or "net::" in error_msg:
+                    raise ValueError("Unable to connect to Alza.cz. The site may be unavailable or network access is restricted.")
+                elif "Timeout" in error_msg or "timeout" in error_msg:
+                    raise ValueError("Connection to Alza.cz timed out. Please try again later.")
+                else:
+                    raise ValueError(f"Failed to connect to Alza.cz: {error_msg}")
             
             # Find and fill search input
-            search_input = await page.wait_for_selector('input[type="text"][name="extext"]', timeout=10000)
-            await search_input.fill(query)
-            
-            # Submit search
-            await search_input.press("Enter")
-            
-            # Wait for results page
-            await page.wait_for_selector('.box.browsingitem, .browsingitem', timeout=15000)
+            try:
+                search_input = await page.wait_for_selector('input[type="text"][name="extext"]', timeout=10000)
+                await search_input.fill(query)
+                
+                # Submit search
+                await search_input.press("Enter")
+                
+                # Wait for results page
+                await page.wait_for_selector('.box.browsingitem, .browsingitem', timeout=15000)
+            except PlaywrightTimeoutError:
+                raise ValueError("Search form or results not found on Alza.cz. The site structure may have changed.")
             
             # Get all product boxes
             product_boxes = await page.query_selector_all('.box.browsingitem, .browsingitem')
@@ -270,6 +304,49 @@ class ScraperService:
             return results
         finally:
             await page.close()
+    
+    def _get_mock_search_results(self, query: str, limit: int = 10) -> list[SearchResultItem]:
+        """
+        Generate mock search results for testing/demo purposes.
+        
+        Args:
+            query: Search query
+            limit: Maximum number of results
+            
+        Returns:
+            list[SearchResultItem]: Mock search results
+        """
+        results = []
+        for i in range(min(5, limit)):
+            results.append(SearchResultItem(
+                name=f"{query.title()} - Product {i+1}",
+                price=999.99 + (i * 100),
+                product_url=f"https://www.alza.cz/mock-product-{i+1}",
+                image_url=f"https://cdn.alza.cz/mock-image-{i+1}.jpg",
+                is_on_sale=(i % 2 == 0),  # Every other product is on sale
+                original_price=(999.99 + (i * 100) + 200) if i % 2 == 0 else None
+            ))
+        return results
+    
+    def _get_mock_product_details(self, url: str) -> dict:
+        """
+        Generate mock product details for testing/demo purposes.
+        
+        Args:
+            url: Product URL
+            
+        Returns:
+            dict: Mock product details
+        """
+        # Extract a product identifier from URL if possible
+        product_id = url.split('/')[-1] if '/' in url else 'unknown'
+        
+        return {
+            "name": f"Mock Product - {product_id}",
+            "price": 12999.00,
+            "is_on_sale": False,
+            "original_price": None
+        }
 
 
 # Global scraper service instance
