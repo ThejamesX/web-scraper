@@ -1,10 +1,14 @@
 """Web scraping service using Playwright."""
 
+import logging
 import re
 from typing import Optional
 from playwright.async_api import async_playwright, Browser, Page, Playwright, Error as PlaywrightError, TimeoutError as PlaywrightTimeoutError
 from core.config import settings
 from api.schemas import SearchResultItem
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 class ScraperService:
@@ -17,17 +21,21 @@ class ScraperService:
     
     async def initialize(self):
         """Launch Playwright and browser."""
+        logger.info("Initializing Playwright browser...")
         self.playwright = await async_playwright().start()
         self.browser = await self.playwright.chromium.launch(
             headless=settings.scraper_headless
         )
+        logger.info("Browser initialized successfully")
     
     async def close(self):
         """Close browser and Playwright."""
+        logger.info("Closing browser and Playwright...")
         if self.browser:
             await self.browser.close()
         if self.playwright:
             await self.playwright.stop()
+        logger.info("Browser closed successfully")
     
     @staticmethod
     def _extract_price_from_text(price_text: str) -> Optional[float]:
@@ -68,6 +76,7 @@ class ScraperService:
         Raises:
             Exception: If product details cannot be extracted
         """
+        logger.info(f"Fetching product details from: {url}")
         if not self.browser:
             await self.initialize()
         
@@ -98,7 +107,9 @@ class ScraperService:
             
             # Determine which e-shop and use appropriate selectors
             if "alza.cz" in url:
-                return await self._fetch_alza_product_details(page)
+                result = await self._fetch_alza_product_details(page)
+                logger.info(f"Successfully fetched product: {result['name']}")
+                return result
             else:
                 raise ValueError(f"Unsupported e-shop URL: {url}")
         finally:
@@ -218,15 +229,19 @@ class ScraperService:
         Raises:
             ValueError: If site is not supported
         """
+        logger.info(f"Searching {site} for '{query}' (limit: {limit})")
         if not self.browser:
             await self.initialize()
         
         if site.lower() == "alza":
             try:
-                return await self._search_alza(query, limit)
+                results = await self._search_alza(query, limit)
+                logger.info(f"Found {len(results)} results for '{query}'")
+                return results
             except ValueError as e:
                 # If mock mode is enabled, return mock data instead of failing
                 if settings.scraper_mock_mode:
+                    logger.info(f"Using mock data for query '{query}'")
                     return self._get_mock_search_results(query, limit)
                 raise
         else:

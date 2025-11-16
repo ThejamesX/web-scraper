@@ -1,5 +1,6 @@
 """Main FastAPI application for PriceScout API."""
 
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -13,6 +14,13 @@ from db import init_db
 from api.endpoints import search_router, track_router
 from scheduler.jobs import check_all_product_prices
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 # Initialize scheduler
 scheduler = AsyncIOScheduler()
 
@@ -25,29 +33,40 @@ async def lifespan(app: FastAPI):
     Handles startup and shutdown events.
     """
     # Startup
-    print("Starting up PriceScout API...")
+    logger.info("Starting up PriceScout API...")
     
     # Initialize database
-    await init_db()
-    print("Database initialized")
+    try:
+        await init_db()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        raise
     
     # Start background scheduler
-    scheduler.add_job(
-        check_all_product_prices,
-        "interval",
-        hours=settings.price_check_interval_hours,
-        id="check_prices",
-        replace_existing=True
-    )
-    scheduler.start()
-    print(f"Scheduler started (checking prices every {settings.price_check_interval_hours} hours)")
+    try:
+        scheduler.add_job(
+            check_all_product_prices,
+            "interval",
+            hours=settings.price_check_interval_hours,
+            id="check_prices",
+            replace_existing=True
+        )
+        scheduler.start()
+        logger.info(f"Scheduler started (checking prices every {settings.price_check_interval_hours} hours)")
+    except Exception as e:
+        logger.error(f"Failed to start scheduler: {e}")
+        raise
     
     yield
     
     # Shutdown
-    print("Shutting down PriceScout API...")
-    scheduler.shutdown()
-    print("Scheduler stopped")
+    logger.info("Shutting down PriceScout API...")
+    try:
+        scheduler.shutdown()
+        logger.info("Scheduler stopped successfully")
+    except Exception as e:
+        logger.error(f"Error stopping scheduler: {e}")
 
 
 # Create FastAPI app
@@ -115,9 +134,16 @@ async def design_tokens():
 @app.get("/health", tags=["health"])
 async def health_check():
     """
-    Health check endpoint.
+    Health check endpoint with detailed status.
     
     Returns:
-        dict: Health status
+        dict: Health status including scheduler state
     """
-    return {"status": "healthy"}
+    scheduler_running = scheduler.running
+    
+    return {
+        "status": "healthy",
+        "version": settings.api_version,
+        "scheduler_running": scheduler_running,
+        "price_check_interval_hours": settings.price_check_interval_hours
+    }
