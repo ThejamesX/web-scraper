@@ -1,7 +1,7 @@
 """Unit tests for business logic."""
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 from scheduler.jobs import check_all_product_prices
 from db.models import Product, PriceHistory
@@ -42,7 +42,7 @@ async def test_check_all_product_prices_unchanged_price():
         name="Test Product",
         eshop="alza",
         last_known_price=999.99,
-        last_check_time=datetime.utcnow(),
+        last_check_time=datetime.now(timezone.utc),
         is_tracked=True
     )
     
@@ -91,7 +91,7 @@ async def test_check_all_product_prices_changed_price():
         name="Test Product",
         eshop="alza",
         last_known_price=999.99,
-        last_check_time=datetime.utcnow(),
+        last_check_time=datetime.now(timezone.utc),
         is_tracked=True
     )
     
@@ -138,7 +138,7 @@ async def test_check_all_product_prices_handles_errors():
         name="Test Product 1",
         eshop="alza",
         last_known_price=999.99,
-        last_check_time=datetime.utcnow(),
+        last_check_time=datetime.now(timezone.utc),
         is_tracked=True
     )
     
@@ -148,7 +148,7 @@ async def test_check_all_product_prices_handles_errors():
         name="Test Product 2",
         eshop="alza",
         last_known_price=799.99,
-        last_check_time=datetime.utcnow(),
+        last_check_time=datetime.now(timezone.utc),
         is_tracked=True
     )
     

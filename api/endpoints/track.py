@@ -1,6 +1,6 @@
 """Track endpoint for product price tracking."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -72,7 +72,7 @@ async def track_product(
         name=details["name"],
         eshop=eshop,
         last_known_price=details["price"],
-        last_check_time=datetime.utcnow(),
+        last_check_time=datetime.now(timezone.utc),
         is_tracked=True
     )
     
@@ -83,7 +83,7 @@ async def track_product(
     price_entry = PriceHistory(
         product_id=new_product.id,
         price=details["price"],
-        timestamp=datetime.utcnow()
+        timestamp=datetime.now(timezone.utc)
     )
     db.add(price_entry)
     

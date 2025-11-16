@@ -1,6 +1,6 @@
 """Database models for PriceScout API."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from typing import Optional, List
@@ -21,7 +21,7 @@ class Product(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     eshop: Mapped[str] = mapped_column(String, nullable=False)
     last_known_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    last_check_time: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_check_time: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     is_tracked: Mapped[bool] = mapped_column(Boolean, default=True)
     
     # Relationship to price history
@@ -40,7 +40,7 @@ class PriceHistory(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     product_id: Mapped[int] = mapped_column(Integer, ForeignKey("products.id"), nullable=False, index=True)
     price: Mapped[float] = mapped_column(Float, nullable=False)
-    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     # Relationship to product
     product: Mapped["Product"] = relationship("Product", back_populates="price_history")

@@ -1,6 +1,6 @@
 """Background jobs for scheduled tasks."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import select
 from db import AsyncSessionLocal
 from db.models import Product, PriceHistory
@@ -41,7 +41,7 @@ async def check_all_product_prices():
                     current_price = details["price"]
                     
                     # Update last check time
-                    product.last_check_time = datetime.utcnow()
+                    product.last_check_time = datetime.now(timezone.utc)
                     
                     # Check if price has changed
                     if product.last_known_price != current_price:
@@ -51,7 +51,7 @@ async def check_all_product_prices():
                         price_entry = PriceHistory(
                             product_id=product.id,
                             price=current_price,
-                            timestamp=datetime.utcnow()
+                            timestamp=datetime.now(timezone.utc)
                         )
                         db.add(price_entry)
                         
