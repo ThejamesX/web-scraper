@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from api.schemas import ProductCreate, ProductOut, PriceHistoryOut
+from api.schemas import ProductCreate, ProductOut, PriceHistoryOut, AlertCreate, AlertResponse
 from db import get_db
 from db.models import Product, PriceHistory
 from scraper.service import ScraperService, get_scraper_service
@@ -73,7 +73,9 @@ async def track_product(
         eshop=eshop,
         last_known_price=details["price"],
         last_check_time=datetime.now(timezone.utc),
-        is_tracked=True
+        is_tracked=True,
+        is_on_sale=details.get("is_on_sale", False),
+        original_price=details.get("original_price")
     )
     
     db.add(new_product)
@@ -83,7 +85,9 @@ async def track_product(
     price_entry = PriceHistory(
         product_id=new_product.id,
         price=details["price"],
-        timestamp=datetime.now(timezone.utc)
+        timestamp=datetime.now(timezone.utc),
+        is_on_sale=details.get("is_on_sale", False),
+        original_price=details.get("original_price")
     )
     db.add(price_entry)
     
@@ -135,3 +139,148 @@ async def get_product_history(
     )
     
     return history
+
+
+@router.get(
+    "",
+    response_model=list[ProductOut],
+    summary="Get all tracked products",
+    description="Retrieve all products that are being tracked."
+)
+async def get_tracked_products(
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get all tracked products.
+    
+    Args:
+        db: Database session
+        
+    Returns:
+        list[ProductOut]: List of all tracked products
+    """
+    result = await db.execute(
+        select(Product).where(Product.is_tracked == True)
+    )
+    products = result.scalars().all()
+    return products
+
+
+@router.get(
+    "/{product_id}",
+    response_model=ProductOut,
+    summary="Get product details",
+    description="Get details of a specific tracked product including all fields."
+)
+async def get_product(
+    product_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get product details.
+    
+    Args:
+        product_id: Product ID
+        db: Database session
+        
+    Returns:
+        ProductOut: Product details
+        
+    Raises:
+        HTTPException: If product not found
+    """
+    result = await db.execute(
+        select(Product).where(Product.id == product_id)
+    )
+    product = result.scalar_one_or_none()
+    
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    return product
+
+
+@router.put(
+    "/{product_id}/alert",
+    response_model=AlertResponse,
+    summary="Set price alert",
+    description="Set or update a price alert for a tracked product."
+)
+async def set_price_alert(
+    product_id: int,
+    alert_data: AlertCreate,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Set or update price alert for a product.
+    
+    Args:
+        product_id: Product ID
+        alert_data: Alert configuration with target price
+        db: Database session
+        
+    Returns:
+        AlertResponse: Success status and updated product
+        
+    Raises:
+        HTTPException: If product not found
+    """
+    result = await db.execute(
+        select(Product).where(Product.id == product_id)
+    )
+    product = result.scalar_one_or_none()
+    
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    # Update alert settings
+    product.alert_price = alert_data.target_price
+    # Reset alert triggered flag when setting a new alert
+    product.alert_triggered = False
+    
+    await db.commit()
+    await db.refresh(product)
+    
+    return AlertResponse(
+        status="success",
+        item=product
+    )
+
+
+@router.delete(
+    "/{product_id}/alert",
+    summary="Clear price alert",
+    description="Remove the price alert for a tracked product."
+)
+async def clear_price_alert(
+    product_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Clear price alert for a product.
+    
+    Args:
+        product_id: Product ID
+        db: Database session
+        
+    Returns:
+        dict: Success status
+        
+    Raises:
+        HTTPException: If product not found
+    """
+    result = await db.execute(
+        select(Product).where(Product.id == product_id)
+    )
+    product = result.scalar_one_or_none()
+    
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    # Clear alert settings
+    product.alert_price = None
+    product.alert_triggered = False
+    
+    await db.commit()
+    
+    return {"status": "success"}

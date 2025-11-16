@@ -35,6 +35,22 @@ class ProductOut(BaseModel):
     last_check_time: datetime = Field(..., description="Timestamp of last price check")
     is_tracked: bool = Field(..., description="Whether the product is actively tracked")
     
+    # Sale tracking fields
+    is_on_sale: bool = Field(default=False, description="Whether the product is currently on sale")
+    original_price: Optional[float] = Field(
+        None,
+        description="Original price before discount (if on sale)",
+        examples=[15999.00]
+    )
+    
+    # Price alert fields
+    alert_price: Optional[float] = Field(
+        None,
+        description="User-defined target price for alert",
+        examples=[10999.00]
+    )
+    alert_triggered: bool = Field(default=False, description="Whether price alert has been triggered")
+    
     model_config = {"from_attributes": True}
 
 
@@ -44,6 +60,14 @@ class PriceHistoryOut(BaseModel):
     
     price: float = Field(..., description="Price in CZK", examples=[12999.00])
     timestamp: datetime = Field(..., description="When the price was recorded")
+    
+    # Sale tracking fields
+    is_on_sale: bool = Field(default=False, description="Whether the product was on sale at this time")
+    original_price: Optional[float] = Field(
+        None,
+        description="Original price before discount (if on sale)",
+        examples=[15999.00]
+    )
     
     model_config = {"from_attributes": True}
 
@@ -79,6 +103,14 @@ class SearchResultItem(BaseModel):
         description="URL to the product image",
         examples=["https://cdn.alza.cz/Foto/f10/RI/RI123.jpg"]
     )
+    
+    # Sale tracking fields
+    is_on_sale: bool = Field(default=False, description="Whether the product is on sale")
+    original_price: Optional[float] = Field(
+        None,
+        description="Original price before discount (if on sale)",
+        examples=[25990.00]
+    )
 
 
 class SearchResponse(BaseModel):
@@ -90,3 +122,22 @@ class SearchResponse(BaseModel):
         ...,
         description="List of search results (up to 10 items)"
     )
+
+
+# Alert Schemas
+class AlertCreate(BaseModel):
+    """Schema for creating/updating a price alert."""
+    
+    target_price: float = Field(
+        ...,
+        description="Target price to trigger alert",
+        examples=[9999.00],
+        gt=0
+    )
+
+
+class AlertResponse(BaseModel):
+    """Schema for alert operation response."""
+    
+    status: str = Field(..., description="Status of the operation", examples=["success"])
+    item: ProductOut = Field(..., description="Updated product with alert information")
