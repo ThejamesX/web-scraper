@@ -10,7 +10,7 @@ from db.session import get_db
 
 @pytest.mark.asyncio
 async def test_root_endpoint(test_db):
-    """Test root endpoint returns API information."""
+    """Test root endpoint returns frontend HTML."""
     # test_db is already the session, not a generator
     async def override_get_db():
         try:
@@ -23,10 +23,9 @@ async def test_root_endpoint(test_db):
     async with AsyncClient(app=app, base_url="http://test") as client:
         response = await client.get("/")
         assert response.status_code == 200
-        data = response.json()
-        assert "message" in data
-        assert "version" in data
-        assert data["version"] == "1.0.0"
+        # Root endpoint should return HTML (frontend)
+        assert "text/html" in response.headers.get("content-type", "")
+        assert "PriceScout" in response.text
     
     app.dependency_overrides.clear()
 
