@@ -2,6 +2,12 @@
 
 A modern, responsive web UI for tracking product prices across e-commerce platforms.
 
+## Screenshot
+
+![Soundbar Search](https://github.com/user-attachments/assets/c3e03453-26c0-4bf9-bd56-99e03929c802)
+
+*The search interface showing results for "soundbar" with multiple products, sale indicators, and tracking capabilities.*
+
 ## Features
 
 - **Dashboard**: View all tracked products with filters (All, On Sale, Triggered Alerts)
@@ -176,12 +182,24 @@ The backend is configured to allow CORS for development. If you still see CORS e
 ## Future Enhancements
 
 Potential features to add:
+- Dark mode support
 - User authentication and multi-user support
 - Email/push notifications for price alerts
 - Export data to CSV/Excel
 - Price comparison across multiple sites
 - Historical price predictions
 - Wishlist sharing
+- Advanced filtering options
+
+See [FUTURE_WORK.md](../FUTURE_WORK.md) for a complete roadmap of planned enhancements.
+
+## Recent Improvements
+
+- ✅ Enhanced error messages with actionable guidance
+- ✅ Improved input validation
+- ✅ Optimized code structure with reduced duplication
+- ✅ Comprehensive test coverage including soundbar search
+- ✅ Better error handling throughout the application
 
 ## License
 
