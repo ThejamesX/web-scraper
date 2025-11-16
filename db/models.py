@@ -24,6 +24,14 @@ class Product(Base):
     last_check_time: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     is_tracked: Mapped[bool] = mapped_column(Boolean, default=True)
     
+    # Sale tracking fields
+    is_on_sale: Mapped[bool] = mapped_column(Boolean, default=False)
+    original_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    
+    # Price alert fields
+    alert_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    alert_triggered: Mapped[bool] = mapped_column(Boolean, default=False)
+    
     # Relationship to price history
     price_history: Mapped[List["PriceHistory"]] = relationship(
         "PriceHistory",
@@ -41,6 +49,10 @@ class PriceHistory(Base):
     product_id: Mapped[int] = mapped_column(Integer, ForeignKey("products.id"), nullable=False, index=True)
     price: Mapped[float] = mapped_column(Float, nullable=False)
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    
+    # Sale tracking fields
+    is_on_sale: Mapped[bool] = mapped_column(Boolean, default=False)
+    original_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     
     # Relationship to product
     product: Mapped["Product"] = relationship("Product", back_populates="price_history")

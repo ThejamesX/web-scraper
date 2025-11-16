@@ -56,7 +56,9 @@ async def test_check_all_product_prices_unchanged_price():
     mock_scraper = AsyncMock()
     mock_scraper.fetch_product_details.return_value = {
         "name": "Test Product",
-        "price": 999.99  # Same as last_known_price
+        "price": 999.99,  # Same as last_known_price
+        "is_on_sale": False,
+        "original_price": None
     }
     
     with patch('scheduler.jobs.AsyncSessionLocal') as mock_session:
@@ -105,7 +107,9 @@ async def test_check_all_product_prices_changed_price():
     mock_scraper = AsyncMock()
     mock_scraper.fetch_product_details.return_value = {
         "name": "Test Product",
-        "price": 899.99  # Changed price
+        "price": 899.99,  # Changed price
+        "is_on_sale": False,
+        "original_price": None
     }
     
     with patch('scheduler.jobs.AsyncSessionLocal') as mock_session:
@@ -162,7 +166,7 @@ async def test_check_all_product_prices_handles_errors():
     mock_scraper = AsyncMock()
     mock_scraper.fetch_product_details.side_effect = [
         Exception("Network error"),  # First call fails
-        {"name": "Test Product 2", "price": 799.99}  # Second call succeeds
+        {"name": "Test Product 2", "price": 799.99, "is_on_sale": False, "original_price": None}  # Second call succeeds
     ]
     
     with patch('scheduler.jobs.AsyncSessionLocal') as mock_session:
@@ -176,4 +180,143 @@ async def test_check_all_product_prices_handles_errors():
             assert mock_scraper.fetch_product_details.call_count == 2
             
             # Verify commit was still called despite error
+            mock_db.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_check_all_product_prices_triggers_alert():
+    """Test price check job triggers alert when price drops below target."""
+    
+    # Create mock product with alert set
+    mock_product = Product(
+        id=1,
+        url="https://www.alza.cz/test",
+        name="Test Product",
+        eshop="alza",
+        last_known_price=999.99,
+        last_check_time=datetime.now(timezone.utc),
+        is_tracked=True,
+        alert_price=900.0,  # Alert set for 900
+        alert_triggered=False,
+        is_on_sale=False,
+        original_price=None
+    )
+    
+    # Mock database session
+    mock_db = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [mock_product]
+    mock_db.execute.return_value = mock_result
+    
+    # Mock scraper service to return price below alert threshold
+    mock_scraper = AsyncMock()
+    mock_scraper.fetch_product_details.return_value = {
+        "name": "Test Product",
+        "price": 850.0,  # Below alert price
+        "is_on_sale": False,
+        "original_price": None
+    }
+    
+    with patch('scheduler.jobs.AsyncSessionLocal') as mock_session:
+        mock_session.return_value.__aenter__.return_value = mock_db
+        
+        with patch('scheduler.jobs.get_scraper_service', return_value=mock_scraper):
+            await check_all_product_prices()
+            
+            # Verify alert was triggered
+            assert mock_product.alert_triggered is True
+            assert mock_product.last_known_price == 850.0
+            
+            # Verify commit was called
+            mock_db.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_check_all_product_prices_does_not_retrigger_alert():
+    """Test that alert is not triggered again if already triggered."""
+    
+    # Create mock product with alert already triggered
+    mock_product = Product(
+        id=1,
+        url="https://www.alza.cz/test",
+        name="Test Product",
+        eshop="alza",
+        last_known_price=850.0,
+        last_check_time=datetime.now(timezone.utc),
+        is_tracked=True,
+        alert_price=900.0,
+        alert_triggered=True,  # Already triggered
+        is_on_sale=False,
+        original_price=None
+    )
+    
+    # Mock database session
+    mock_db = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [mock_product]
+    mock_db.execute.return_value = mock_result
+    
+    # Mock scraper service
+    mock_scraper = AsyncMock()
+    mock_scraper.fetch_product_details.return_value = {
+        "name": "Test Product",
+        "price": 850.0,  # Still below alert price
+        "is_on_sale": False,
+        "original_price": None
+    }
+    
+    with patch('scheduler.jobs.AsyncSessionLocal') as mock_session:
+        mock_session.return_value.__aenter__.return_value = mock_db
+        
+        with patch('scheduler.jobs.get_scraper_service', return_value=mock_scraper):
+            await check_all_product_prices()
+            
+            # Verify alert_triggered remains True (not changed)
+            assert mock_product.alert_triggered is True
+
+
+@pytest.mark.asyncio
+async def test_check_all_product_prices_updates_sale_status():
+    """Test price check job updates sale status."""
+    
+    # Create mock product not on sale
+    mock_product = Product(
+        id=1,
+        url="https://www.alza.cz/test",
+        name="Test Product",
+        eshop="alza",
+        last_known_price=999.99,
+        last_check_time=datetime.now(timezone.utc),
+        is_tracked=True,
+        is_on_sale=False,
+        original_price=None
+    )
+    
+    # Mock database session
+    mock_db = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [mock_product]
+    mock_db.execute.return_value = mock_result
+    
+    # Mock scraper service to return product now on sale
+    mock_scraper = AsyncMock()
+    mock_scraper.fetch_product_details.return_value = {
+        "name": "Test Product",
+        "price": 799.99,
+        "is_on_sale": True,
+        "original_price": 999.99
+    }
+    
+    with patch('scheduler.jobs.AsyncSessionLocal') as mock_session:
+        mock_session.return_value.__aenter__.return_value = mock_db
+        
+        with patch('scheduler.jobs.get_scraper_service', return_value=mock_scraper):
+            await check_all_product_prices()
+            
+            # Verify sale status was updated
+            assert mock_product.is_on_sale is True
+            assert mock_product.original_price == 999.99
+            assert mock_product.last_known_price == 799.99
+            
+            # Verify commit was called
             mock_db.commit.assert_called_once()

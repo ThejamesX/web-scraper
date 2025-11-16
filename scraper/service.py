@@ -65,7 +65,7 @@ class ScraperService:
             page: Playwright page object
             
         Returns:
-            dict: Dictionary with 'name' and 'price' keys
+            dict: Dictionary with 'name', 'price', 'is_on_sale', and 'original_price' keys
         """
         # Wait for product name
         await page.wait_for_selector("h1", timeout=10000)
@@ -74,6 +74,10 @@ class ScraperService:
         name_element = await page.query_selector("h1")
         name = await name_element.inner_text() if name_element else "Unknown"
         name = name.strip()
+        
+        # Initialize sale status
+        is_on_sale = False
+        original_price = None
         
         # Extract price - try multiple selectors
         price = None
@@ -96,9 +100,53 @@ class ScraperService:
         if price is None:
             raise ValueError("Could not extract price from page")
         
+        # Check for sale/discount indicators
+        # Look for crossed-out original price
+        strikethrough_selectors = [
+            ".price-box__old-price",
+            ".old-price",
+            "[class*='old-price']",
+            "[class*='strikethrough']",
+            "del",
+            "s"
+        ]
+        
+        for selector in strikethrough_selectors:
+            old_price_element = await page.query_selector(selector)
+            if old_price_element:
+                old_price_text = await old_price_element.inner_text()
+                # Extract numeric value
+                old_price_match = re.search(r'([\d\s]+)', old_price_text.replace(',', '').replace(' ', ''))
+                if old_price_match:
+                    original_price = float(old_price_match.group(1).strip())
+                    is_on_sale = True
+                    break
+        
+        # If no strikethrough price found, check for sale badges/labels
+        if not is_on_sale:
+            sale_indicators = [
+                ".badge-sale",
+                ".sale-badge",
+                "[class*='sale']",
+                "[class*='discount']",
+                "[class*='akce']"  # Czech for "sale/action"
+            ]
+            
+            for selector in sale_indicators:
+                sale_element = await page.query_selector(selector)
+                if sale_element:
+                    sale_text = await sale_element.inner_text()
+                    sale_text = sale_text.lower()
+                    # Check if text contains sale indicators
+                    if any(word in sale_text for word in ['sale', 'sleva', 'akce', 'discount', 'akční']):
+                        is_on_sale = True
+                        break
+        
         return {
             "name": name,
-            "price": price
+            "price": price,
+            "is_on_sale": is_on_sale,
+            "original_price": original_price
         }
     
     async def search_site(self, site: str, query: str, limit: int = 10) -> list[SearchResultItem]:
@@ -188,11 +236,32 @@ class ScraperService:
                         if not image_url:
                             image_url = await img_element.get_attribute('data-src')
                     
+                    # Check for sale status
+                    is_on_sale = False
+                    original_price = None
+                    
+                    # Look for old/strikethrough price
+                    old_price_element = await box.query_selector('.price-box__old-price, .old-price, del, s')
+                    if old_price_element:
+                        old_price_text = await old_price_element.inner_text()
+                        old_price_match = re.search(r'([\d\s]+)', old_price_text.replace(',', '').replace(' ', ''))
+                        if old_price_match:
+                            original_price = float(old_price_match.group(1).strip())
+                            is_on_sale = True
+                    
+                    # If no strikethrough price, check for sale badge
+                    if not is_on_sale:
+                        sale_badge = await box.query_selector('.badge-sale, .sale-badge, [class*="sale"], [class*="akce"]')
+                        if sale_badge:
+                            is_on_sale = True
+                    
                     results.append(SearchResultItem(
                         name=name,
                         price=price,
                         product_url=product_url,
-                        image_url=image_url
+                        image_url=image_url,
+                        is_on_sale=is_on_sale,
+                        original_price=original_price
                     ))
                 except Exception as e:
                     # Skip problematic items

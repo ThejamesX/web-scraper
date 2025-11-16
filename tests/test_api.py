@@ -236,3 +236,252 @@ async def test_get_nonexistent_product_history(test_db):
             assert "not found" in response.json()["detail"].lower()
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_get_all_tracked_products(test_db):
+    """Test getting all tracked products."""
+    mock_scraper = MockScraperService()
+    
+    async def override_get_db():
+        try:
+            yield test_db
+        finally:
+            pass
+    
+    async def override_get_scraper():
+        return mock_scraper
+    
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_scraper_service] = override_get_scraper
+    
+    try:
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            # First, track a couple of products
+            await client.post("/track", json={"url": "https://www.alza.cz/test-1"})
+            await client.post("/track", json={"url": "https://www.alza.cz/test-2"})
+            
+            # Get all tracked products
+            response = await client.get("/track")
+            assert response.status_code == 200
+            data = response.json()
+            assert isinstance(data, list)
+            assert len(data) == 2
+            
+            # Check that new fields are present
+            assert "is_on_sale" in data[0]
+            assert "original_price" in data[0]
+            assert "alert_price" in data[0]
+            assert "alert_triggered" in data[0]
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_get_single_product(test_db):
+    """Test getting a single tracked product."""
+    mock_scraper = MockScraperService()
+    
+    async def override_get_db():
+        try:
+            yield test_db
+        finally:
+            pass
+    
+    async def override_get_scraper():
+        return mock_scraper
+    
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_scraper_service] = override_get_scraper
+    
+    try:
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            # Track a product
+            track_response = await client.post("/track", json={"url": "https://www.alza.cz/test-product"})
+            product_id = track_response.json()["id"]
+            
+            # Get the product
+            response = await client.get(f"/track/{product_id}")
+            assert response.status_code == 200
+            data = response.json()
+            assert data["id"] == product_id
+            assert "is_on_sale" in data
+            assert "alert_price" in data
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_set_price_alert(test_db):
+    """Test setting a price alert."""
+    mock_scraper = MockScraperService()
+    
+    async def override_get_db():
+        try:
+            yield test_db
+        finally:
+            pass
+    
+    async def override_get_scraper():
+        return mock_scraper
+    
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_scraper_service] = override_get_scraper
+    
+    try:
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            # Track a product first
+            track_response = await client.post("/track", json={"url": "https://www.alza.cz/test-product"})
+            product_id = track_response.json()["id"]
+            
+            # Set an alert
+            alert_response = await client.put(
+                f"/track/{product_id}/alert",
+                json={"target_price": 500.0}
+            )
+            
+            assert alert_response.status_code == 200
+            data = alert_response.json()
+            assert data["status"] == "success"
+            assert data["item"]["alert_price"] == 500.0
+            assert data["item"]["alert_triggered"] is False
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_clear_price_alert(test_db):
+    """Test clearing a price alert."""
+    mock_scraper = MockScraperService()
+    
+    async def override_get_db():
+        try:
+            yield test_db
+        finally:
+            pass
+    
+    async def override_get_scraper():
+        return mock_scraper
+    
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_scraper_service] = override_get_scraper
+    
+    try:
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            # Track a product first
+            track_response = await client.post("/track", json={"url": "https://www.alza.cz/test-product"})
+            product_id = track_response.json()["id"]
+            
+            # Set an alert
+            await client.put(f"/track/{product_id}/alert", json={"target_price": 500.0})
+            
+            # Clear the alert
+            clear_response = await client.delete(f"/track/{product_id}/alert")
+            assert clear_response.status_code == 200
+            assert clear_response.json()["status"] == "success"
+            
+            # Verify alert is cleared
+            product_response = await client.get(f"/track/{product_id}")
+            product_data = product_response.json()
+            assert product_data["alert_price"] is None
+            assert product_data["alert_triggered"] is False
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_alert_on_nonexistent_product(test_db):
+    """Test setting alert on non-existent product returns 404."""
+    async def override_get_db():
+        try:
+            yield test_db
+        finally:
+            pass
+    
+    app.dependency_overrides[get_db] = override_get_db
+    
+    try:
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            response = await client.put(
+                "/track/99999/alert",
+                json={"target_price": 500.0}
+            )
+            assert response.status_code == 404
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_track_product_with_sale(test_db):
+    """Test tracking a product that is on sale."""
+    mock_scraper = MockScraperService()
+    
+    async def override_get_db():
+        try:
+            yield test_db
+        finally:
+            pass
+    
+    async def override_get_scraper():
+        return mock_scraper
+    
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_scraper_service] = override_get_scraper
+    
+    try:
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            # Track a product with "on-sale" in URL to trigger mock sale data
+            response = await client.post(
+                "/track",
+                json={"url": "https://www.alza.cz/test-on-sale-product"}
+            )
+            
+            assert response.status_code == 201
+            data = response.json()
+            assert data["is_on_sale"] is True
+            assert data["original_price"] == 999.99
+            assert data["last_known_price"] == 799.99
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_search_includes_sale_info(test_db):
+    """Test that search results include sale information."""
+    mock_scraper = MockScraperService()
+    
+    async def override_get_db():
+        try:
+            yield test_db
+        finally:
+            pass
+    
+    async def override_get_scraper():
+        return mock_scraper
+    
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_scraper_service] = override_get_scraper
+    
+    try:
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            response = await client.post(
+                "/search",
+                json={
+                    "site": "alza",
+                    "query": "laptop"
+                }
+            )
+            
+            assert response.status_code == 200
+            data = response.json()
+            results = data["results"]
+            
+            # Check that sale fields are present
+            assert "is_on_sale" in results[0]
+            assert "original_price" in results[0]
+            
+            # Second product should be on sale (per mock)
+            assert results[1]["is_on_sale"] is True
+            assert results[1]["original_price"] == 150.0
+    finally:
+        app.dependency_overrides.clear()

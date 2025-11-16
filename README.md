@@ -6,6 +6,9 @@ A robust, scalable FastAPI backend service for e-commerce product search and pri
 
 - **Product Search**: Search e-commerce sites (currently supports Alza.cz) for products and get top 10 results
 - **Price Tracking**: Track product URLs and monitor price changes over time
+- **Sale Detection**: Automatically detect when products are on sale and track original prices
+- **Price Alerts**: Set custom price alerts and get notified when prices drop below your target
+- **Historical Sale Tracking**: Track when products were on sale, not just current status
 - **Background Jobs**: Automated price checks using APScheduler
 - **Async Architecture**: Built with async/await for high performance
 - **Comprehensive Testing**: Unit tests, integration tests, and API tests
@@ -168,7 +171,9 @@ Response:
       "name": "Samsung Galaxy S23 256GB",
       "price": 22990.00,
       "product_url": "https://www.alza.cz/samsung-galaxy-s23-...",
-      "image_url": "https://cdn.alza.cz/..."
+      "image_url": "https://cdn.alza.cz/...",
+      "is_on_sale": true,
+      "original_price": 25990.00
     }
   ]
 }
@@ -195,11 +200,50 @@ Response:
   "eshop": "alza",
   "last_known_price": 22990.00,
   "last_check_time": "2024-01-15T10:30:00",
-  "is_tracked": true
+  "is_tracked": true,
+  "is_on_sale": true,
+  "original_price": 25990.00,
+  "alert_price": null,
+  "alert_triggered": false
 }
 ```
 
-### 3. Get Price History
+### 3. Set Price Alert
+
+Set a price alert to be notified when the price drops:
+
+```bash
+curl -X PUT "http://localhost:8000/track/1/alert" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "target_price": 20000.00
+  }'
+```
+
+Response:
+```json
+{
+  "status": "success",
+  "item": {
+    "id": 1,
+    "alert_price": 20000.00,
+    "alert_triggered": false,
+    ...
+  }
+}
+```
+
+### 4. Get All Tracked Products
+
+List all products you're tracking:
+
+```bash
+curl -X GET "http://localhost:8000/track"
+```
+
+Response: Array of product objects with all fields including sale status and alert information.
+
+### 5. Get Price History
 
 Retrieve price history for a tracked product:
 
@@ -212,11 +256,15 @@ Response:
 [
   {
     "price": 22990.00,
-    "timestamp": "2024-01-15T10:30:00"
+    "timestamp": "2024-01-15T10:30:00",
+    "is_on_sale": true,
+    "original_price": 25990.00
   },
   {
     "price": 24990.00,
-    "timestamp": "2024-01-14T06:00:00"
+    "timestamp": "2024-01-14T06:00:00",
+    "is_on_sale": false,
+    "original_price": null
   }
 ]
 ```
@@ -260,10 +308,19 @@ The application automatically runs a background job to check prices for all trac
 
 The job:
 1. Fetches all products where `is_tracked=True`
-2. Scrapes current price for each product
-3. Compares with `last_known_price`
-4. If changed, creates a new `PriceHistory` entry
-5. Updates `last_known_price` and `last_check_time`
+2. Scrapes current price and sale status for each product
+3. Updates sale information (`is_on_sale`, `original_price`)
+4. Compares with `last_known_price`
+5. If changed, creates a new `PriceHistory` entry with sale information
+6. Updates `last_known_price` and `last_check_time`
+7. Checks if price alert should be triggered:
+   - If `alert_price` is set and current price <= `alert_price`
+   - Sets `alert_triggered` to `true` (only triggers once per alert)
+
+**Alert Behavior:**
+- Alerts trigger automatically when the price drops to or below the target
+- Once triggered, the alert won't re-trigger until it's cleared and set again
+- Frontend should monitor `alert_triggered` to notify users
 
 ## Development
 

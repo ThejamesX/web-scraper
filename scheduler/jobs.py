@@ -39,9 +39,15 @@ async def check_all_product_prices():
                     # Fetch current product details
                     details = await scraper.fetch_product_details(product.url)
                     current_price = details["price"]
+                    is_on_sale = details.get("is_on_sale", False)
+                    original_price = details.get("original_price")
                     
                     # Update last check time
                     product.last_check_time = datetime.now(timezone.utc)
+                    
+                    # Update sale status
+                    product.is_on_sale = is_on_sale
+                    product.original_price = original_price
                     
                     # Check if price has changed
                     if product.last_known_price != current_price:
@@ -51,7 +57,9 @@ async def check_all_product_prices():
                         price_entry = PriceHistory(
                             product_id=product.id,
                             price=current_price,
-                            timestamp=datetime.now(timezone.utc)
+                            timestamp=datetime.now(timezone.utc),
+                            is_on_sale=is_on_sale,
+                            original_price=original_price
                         )
                         db.add(price_entry)
                         
@@ -59,6 +67,12 @@ async def check_all_product_prices():
                         product.last_known_price = current_price
                     else:
                         print(f"Price unchanged: {current_price}")
+                    
+                    # Check if price alert should be triggered
+                    if product.alert_price is not None and not product.alert_triggered:
+                        if current_price <= product.alert_price:
+                            print(f"Alert triggered! Price {current_price} <= target {product.alert_price}")
+                            product.alert_triggered = True
                     
                 except Exception as e:
                     print(f"Error checking product {product.id}: {str(e)}")
