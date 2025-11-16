@@ -98,6 +98,20 @@ async def root():
     }
 
 
+@app.get("/design-tokens.css", tags=["static"])
+async def design_tokens():
+    """
+    Serve design tokens CSS file.
+    
+    Returns:
+        FileResponse: Design tokens CSS
+    """
+    tokens_file = Path(__file__).parent / "design-tokens.css"
+    if tokens_file.exists():
+        return FileResponse(tokens_file, media_type="text/css")
+    return {"error": "Design tokens not found"}
+
+
 @app.get("/health", tags=["health"])
 async def health_check():
     """
