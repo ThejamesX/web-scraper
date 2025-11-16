@@ -29,6 +29,32 @@ class ScraperService:
         if self.playwright:
             await self.playwright.stop()
     
+    @staticmethod
+    def _extract_price_from_text(price_text: str) -> Optional[float]:
+        """
+        Extract numeric price value from text.
+        
+        Args:
+            price_text: Text containing price
+            
+        Returns:
+            float: Extracted price or None if not found
+        """
+        if not price_text:
+            return None
+        
+        # Remove common currency symbols and separators
+        cleaned_text = price_text.replace(',', '').replace(' ', '').replace('Kč', '').replace('CZK', '')
+        
+        # Extract numeric value
+        price_match = re.search(r'([\d]+(?:\.[\d]+)?)', cleaned_text)
+        if price_match:
+            try:
+                return float(price_match.group(1))
+            except ValueError:
+                return None
+        return None
+    
     async def fetch_product_details(self, url: str) -> dict:
         """
         Fetch product details from a product page URL.
@@ -56,11 +82,19 @@ class ScraperService:
                     if settings.scraper_mock_mode:
                         await page.close()
                         return self._get_mock_product_details(url)
-                    raise ValueError(f"Unable to connect to {url}. The site may be unavailable or network access is restricted.")
+                    raise ValueError(
+                        f"Cannot reach the website at {url}. "
+                        "Please check your internet connection or try again later. "
+                        "The website might be temporarily unavailable."
+                    )
                 elif "Timeout" in error_msg or "timeout" in error_msg:
-                    raise ValueError(f"Connection to {url} timed out. Please try again later.")
+                    raise ValueError(
+                        f"The website at {url} is taking too long to respond. "
+                        "This could be due to slow internet connection or high server load. "
+                        "Please try again in a few moments."
+                    )
                 else:
-                    raise ValueError(f"Failed to load product page: {error_msg}")
+                    raise ValueError(f"Unable to load product page: {error_msg}")
             
             # Determine which e-shop and use appropriate selectors
             if "alza.cz" in url:
@@ -84,7 +118,11 @@ class ScraperService:
         try:
             await page.wait_for_selector("h1", timeout=10000)
         except PlaywrightTimeoutError:
-            raise ValueError("Product page did not load properly. Could not find product name.")
+            raise ValueError(
+                "The product page did not load correctly. "
+                "This might be because the page structure has changed or the product is no longer available. "
+                "Please verify the URL and try again."
+            )
         
         # Extract product name
         name_element = await page.query_selector("h1")
@@ -107,14 +145,16 @@ class ScraperService:
             price_element = await page.query_selector(selector)
             if price_element:
                 price_text = await price_element.inner_text()
-                # Extract numeric price value
-                price_match = re.search(r'([\d\s]+)', price_text.replace(',', '').replace(' ', ''))
-                if price_match:
-                    price = float(price_match.group(1).strip())
+                price = self._extract_price_from_text(price_text)
+                if price:
                     break
         
         if price is None:
-            raise ValueError("Could not extract price from page")
+            raise ValueError(
+                "Unable to find the product price on this page. "
+                "The page layout may have changed or the product might not be available. "
+                "Please check the product URL and try again."
+            )
         
         # Check for sale/discount indicators
         # Look for crossed-out original price
@@ -131,10 +171,8 @@ class ScraperService:
             old_price_element = await page.query_selector(selector)
             if old_price_element:
                 old_price_text = await old_price_element.inner_text()
-                # Extract numeric value
-                old_price_match = re.search(r'([\d\s]+)', old_price_text.replace(',', '').replace(' ', ''))
-                if old_price_match:
-                    original_price = float(old_price_match.group(1).strip())
+                original_price = self._extract_price_from_text(old_price_text)
+                if original_price:
                     is_on_sale = True
                     break
         
@@ -213,11 +251,17 @@ class ScraperService:
             except PlaywrightError as e:
                 error_msg = str(e)
                 if "ERR_NAME_NOT_RESOLVED" in error_msg or "net::" in error_msg:
-                    raise ValueError("Unable to connect to Alza.cz. The site may be unavailable or network access is restricted.")
+                    raise ValueError(
+                        "Cannot connect to Alza.cz. "
+                        "Please check your internet connection and try again."
+                    )
                 elif "Timeout" in error_msg or "timeout" in error_msg:
-                    raise ValueError("Connection to Alza.cz timed out. Please try again later.")
+                    raise ValueError(
+                        "Alza.cz is not responding. The site may be experiencing high traffic. "
+                        "Please try again in a few moments."
+                    )
                 else:
-                    raise ValueError(f"Failed to connect to Alza.cz: {error_msg}")
+                    raise ValueError(f"Failed to access Alza.cz: {error_msg}")
             
             # Find and fill search input
             try:
@@ -230,7 +274,11 @@ class ScraperService:
                 # Wait for results page
                 await page.wait_for_selector('.box.browsingitem, .browsingitem', timeout=15000)
             except PlaywrightTimeoutError:
-                raise ValueError("Search form or results not found on Alza.cz. The site structure may have changed.")
+                raise ValueError(
+                    "Unable to perform search on Alza.cz. "
+                    "The website layout may have changed or the search is taking too long. "
+                    "Please try a different search term or try again later."
+                )
             
             # Get all product boxes
             product_boxes = await page.query_selector_all('.box.browsingitem, .browsingitem')
@@ -256,11 +304,10 @@ class ScraperService:
                         continue
                     price_text = await price_element.inner_text()
                     
-                    # Parse price
-                    price_match = re.search(r'([\d\s]+)', price_text.replace(',', '').replace(' ', ''))
-                    if not price_match:
+                    # Parse price using helper method
+                    price = self._extract_price_from_text(price_text)
+                    if not price:
                         continue
-                    price = float(price_match.group(1).strip())
                     
                     # Extract image URL
                     image_url = None
@@ -278,9 +325,8 @@ class ScraperService:
                     old_price_element = await box.query_selector('.price-box__old-price, .old-price, del, s')
                     if old_price_element:
                         old_price_text = await old_price_element.inner_text()
-                        old_price_match = re.search(r'([\d\s]+)', old_price_text.replace(',', '').replace(' ', ''))
-                        if old_price_match:
-                            original_price = float(old_price_match.group(1).strip())
+                        original_price = self._extract_price_from_text(old_price_text)
+                        if original_price:
                             is_on_sale = True
                     
                     # If no strikethrough price, check for sale badge

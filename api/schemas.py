@@ -11,7 +11,9 @@ class ProductBase(BaseModel):
     url: str = Field(
         ...,
         description="The URL of the product page",
-        examples=["https://www.alza.cz/samsung-galaxy-s23-d7654321.htm"]
+        examples=["https://www.alza.cz/samsung-galaxy-s23-d7654321.htm"],
+        min_length=10,
+        max_length=2048
     )
 
 
@@ -79,12 +81,15 @@ class SearchQuery(BaseModel):
     site: str = Field(
         ...,
         description="E-commerce site to search (currently supports: 'alza')",
-        examples=["alza"]
+        examples=["alza"],
+        min_length=1
     )
     query: str = Field(
         ...,
         description="Search query text",
-        examples=["Samsung Galaxy S23", "iPhone 15", "laptop"]
+        examples=["Samsung Galaxy S23", "iPhone 15", "laptop"],
+        min_length=2,
+        max_length=200
     )
 
 
