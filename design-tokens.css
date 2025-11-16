@@ -1,0 +1,388 @@
+/**
+ * PriceScout Design System - CSS Design Tokens
+ * Version: 1.0.0
+ * 
+ * This file contains all design tokens from the PriceScout Design System.
+ * Import this file at the root of your application to use these variables.
+ * 
+ * Usage:
+ *   @import 'design-tokens.css';
+ *   
+ *   .my-component {
+ *     color: var(--color-primary);
+ *     padding: var(--spacing-md);
+ *   }
+ */
+
+:root {
+  /* ========================================
+     COLOR PALETTE
+     ======================================== */
+  
+  /* Primary Colors */
+  --color-primary: #3B82F6;
+  --color-primary-dark: #2563EB;
+  --color-primary-light: #60A5FA;
+  --color-secondary: #6B7280;
+  
+  /* Background Colors */
+  --color-bg-light: #F9FAFB;
+  --color-bg-white: #FFFFFF;
+  --color-bg-dark: #111827;
+  
+  /* Text Colors */
+  --color-text-primary: #1F2937;
+  --color-text-secondary: #4B5563;
+  --color-text-tertiary: #9CA3AF;
+  --color-text-inverse: #FFFFFF;
+  
+  /* Border Colors */
+  --color-border-default: #E5E7EB;
+  --color-border-light: #F3F4F6;
+  --color-border-dark: #D1D5DB;
+  
+  /* Accent Colors - Sale */
+  --color-accent-sale: #EF4444;
+  --color-accent-sale-bg: #FEE2E2;
+  --color-accent-sale-dark: #DC2626;
+  
+  /* Accent Colors - Alert (Active) */
+  --color-accent-alert: #10B981;
+  --color-accent-alert-bg: #D1FAE5;
+  --color-accent-alert-dark: #059669;
+  
+  /* Accent Colors - Alert Triggered */
+  --color-accent-alert-triggered: #F59E0B;
+  --color-accent-alert-triggered-bg: #FEF3C7;
+  --color-accent-alert-triggered-dark: #D97706;
+  
+  /* Semantic Colors */
+  --color-success: #10B981;
+  --color-success-bg: #D1FAE5;
+  --color-error: #EF4444;
+  --color-error-bg: #FEE2E2;
+  --color-warning: #F59E0B;
+  --color-warning-bg: #FEF3C7;
+  --color-info: #3B82F6;
+  --color-info-bg: #DBEAFE;
+  
+  /* ========================================
+     TYPOGRAPHY
+     ======================================== */
+  
+  /* Font Families */
+  --font-family-headings: 'Manrope', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family-body: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family-mono: 'Fira Code', 'Monaco', 'Courier New', monospace;
+  
+  /* Font Sizes */
+  --font-size-base: 16px;
+  --font-size-xs: 0.75rem;     /* 12px */
+  --font-size-sm: 0.875rem;    /* 14px */
+  --font-size-md: 1rem;        /* 16px */
+  --font-size-lg: 1.125rem;    /* 18px */
+  --font-size-xl: 1.25rem;     /* 20px */
+  --font-size-2xl: 1.5rem;     /* 24px */
+  --font-size-3xl: 1.875rem;   /* 30px */
+  --font-size-4xl: 2.25rem;    /* 36px */
+  --font-size-5xl: 3rem;       /* 48px */
+  
+  /* Heading Sizes */
+  --font-size-h1: 2.25rem;     /* 36px */
+  --font-size-h2: 1.875rem;    /* 30px */
+  --font-size-h3: 1.5rem;      /* 24px */
+  --font-size-h4: 1.25rem;     /* 20px */
+  --font-size-h5: 1.125rem;    /* 18px */
+  --font-size-h6: 1rem;        /* 16px */
+  
+  /* Font Weights */
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  
+  /* Heading Weights */
+  --font-weight-h1: 700;
+  --font-weight-h2: 700;
+  --font-weight-h3: 600;
+  --font-weight-h4: 600;
+  --font-weight-h5: 600;
+  --font-weight-h6: 600;
+  
+  /* Line Heights */
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+  --line-height-loose: 2;
+  
+  /* Letter Spacing */
+  --letter-spacing-tight: -0.025em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.025em;
+  --letter-spacing-wider: 0.05em;
+  --letter-spacing-widest: 0.1em;
+  
+  /* ========================================
+     SPACING
+     ======================================== */
+  
+  --spacing-unit: 8px;
+  
+  /* Spacing Scale */
+  --spacing-0: 0;
+  --spacing-xs: 4px;       /* 0.5 units */
+  --spacing-sm: 8px;       /* 1 unit */
+  --spacing-md: 16px;      /* 2 units */
+  --spacing-lg: 24px;      /* 3 units */
+  --spacing-xl: 32px;      /* 4 units */
+  --spacing-2xl: 48px;     /* 6 units */
+  --spacing-3xl: 64px;     /* 8 units */
+  --spacing-4xl: 96px;     /* 12 units */
+  
+  /* Component-Specific Spacing */
+  --component-spacing: 16px;
+  --card-padding: 16px;
+  --section-spacing: 48px;
+  
+  /* ========================================
+     BORDERS
+     ======================================== */
+  
+  /* Border Widths */
+  --border-width-thin: 1px;
+  --border-width-medium: 2px;
+  --border-width-thick: 3px;
+  --border-width-status: 3px;
+  
+  /* Border Radius */
+  --border-radius-none: 0;
+  --border-radius-sm: 4px;
+  --border-radius: 8px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  --border-radius-xl: 16px;
+  --border-radius-2xl: 24px;
+  --border-radius-full: 9999px;
+  --border-radius-pill: 9999px;
+  
+  /* ========================================
+     SHADOWS
+     ======================================== */
+  
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-default: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+  --shadow-none: none;
+  
+  /* Focus Shadow */
+  --shadow-focus: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  
+  /* ========================================
+     LAYOUT
+     ======================================== */
+  
+  /* Container */
+  --container-max-width: 1440px;
+  --container-padding: 16px;
+  
+  /* Z-Index Scale */
+  --z-index-dropdown: 1000;
+  --z-index-sticky: 1020;
+  --z-index-fixed: 1030;
+  --z-index-modal-backdrop: 1040;
+  --z-index-modal: 1050;
+  --z-index-popover: 1060;
+  --z-index-tooltip: 1070;
+  --z-index-toast: 1080;
+  
+  /* ========================================
+     TRANSITIONS
+     ======================================== */
+  
+  /* Duration */
+  --duration-instant: 0ms;
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-moderate: 300ms;
+  --duration-slow: 500ms;
+  
+  /* Easing Functions */
+  --ease-linear: linear;
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  
+  /* ========================================
+     BREAKPOINTS (for reference in media queries)
+     ======================================== */
+  
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+  
+  /* ========================================
+     ICON SIZES
+     ======================================== */
+  
+  --icon-size-xs: 12px;
+  --icon-size-sm: 16px;
+  --icon-size-md: 20px;
+  --icon-size-lg: 24px;
+  --icon-size-xl: 32px;
+  --icon-size-2xl: 48px;
+  
+  /* ========================================
+     COMPONENT-SPECIFIC
+     ======================================== */
+  
+  /* Buttons */
+  --button-padding-sm: 8px 16px;
+  --button-padding-md: 12px 24px;
+  --button-padding-lg: 16px 32px;
+  
+  /* Inputs */
+  --input-padding: 12px 16px;
+  --input-border-width: 2px;
+  
+  /* Cards */
+  --card-border-width: 1px;
+  --card-status-border-width: 3px;
+  
+  /* Toast */
+  --toast-padding: 16px 24px;
+  --toast-gap: 12px;
+  
+  /* Badge */
+  --badge-padding-sm: 2px 8px;
+  --badge-padding-md: 4px 12px;
+  --badge-padding-lg: 6px 16px;
+  
+  /* Charts */
+  --chart-height-mobile: 300px;
+  --chart-height-tablet: 350px;
+  --chart-height-desktop: 400px;
+  --chart-line-width: 2px;
+  --chart-point-radius: 6px;
+}
+
+/* ========================================
+   UTILITY CLASSES
+   ======================================== */
+
+/* Text Utilities */
+.text-primary { color: var(--color-text-primary); }
+.text-secondary { color: var(--color-text-secondary); }
+.text-tertiary { color: var(--color-text-tertiary); }
+.text-inverse { color: var(--color-text-inverse); }
+
+/* Background Utilities */
+.bg-white { background-color: var(--color-bg-white); }
+.bg-light { background-color: var(--color-bg-light); }
+.bg-primary { background-color: var(--color-primary); }
+
+/* Font Weight Utilities */
+.font-light { font-weight: var(--font-weight-light); }
+.font-normal { font-weight: var(--font-weight-normal); }
+.font-medium { font-weight: var(--font-weight-medium); }
+.font-semibold { font-weight: var(--font-weight-semibold); }
+.font-bold { font-weight: var(--font-weight-bold); }
+
+/* Text Transform Utilities */
+.uppercase { text-transform: uppercase; }
+.lowercase { text-transform: lowercase; }
+.capitalize { text-transform: capitalize; }
+
+/* Display Utilities */
+.hidden { display: none; }
+.block { display: block; }
+.inline-block { display: inline-block; }
+.flex { display: flex; }
+.inline-flex { display: inline-flex; }
+.grid { display: grid; }
+
+/* Flex Utilities */
+.flex-row { flex-direction: row; }
+.flex-column { flex-direction: column; }
+.items-center { align-items: center; }
+.items-start { align-items: flex-start; }
+.items-end { align-items: flex-end; }
+.justify-center { justify-content: center; }
+.justify-start { justify-content: flex-start; }
+.justify-end { justify-content: flex-end; }
+.justify-between { justify-content: space-between; }
+.gap-xs { gap: var(--spacing-xs); }
+.gap-sm { gap: var(--spacing-sm); }
+.gap-md { gap: var(--spacing-md); }
+.gap-lg { gap: var(--spacing-lg); }
+
+/* Spacing Utilities */
+.m-0 { margin: 0; }
+.mt-sm { margin-top: var(--spacing-sm); }
+.mt-md { margin-top: var(--spacing-md); }
+.mt-lg { margin-top: var(--spacing-lg); }
+.mb-sm { margin-bottom: var(--spacing-sm); }
+.mb-md { margin-bottom: var(--spacing-md); }
+.mb-lg { margin-bottom: var(--spacing-lg); }
+.p-sm { padding: var(--spacing-sm); }
+.p-md { padding: var(--spacing-md); }
+.p-lg { padding: var(--spacing-lg); }
+
+/* Border Radius Utilities */
+.rounded { border-radius: var(--border-radius); }
+.rounded-sm { border-radius: var(--border-radius-sm); }
+.rounded-lg { border-radius: var(--border-radius-lg); }
+.rounded-full { border-radius: var(--border-radius-full); }
+
+/* Shadow Utilities */
+.shadow { box-shadow: var(--shadow-default); }
+.shadow-sm { box-shadow: var(--shadow-sm); }
+.shadow-lg { box-shadow: var(--shadow-lg); }
+.shadow-xl { box-shadow: var(--shadow-xl); }
+.shadow-none { box-shadow: var(--shadow-none); }
+
+/* Transition Utilities */
+.transition-fast { transition: all var(--duration-fast) var(--ease-in-out); }
+.transition { transition: all var(--duration-normal) var(--ease-in-out); }
+.transition-slow { transition: all var(--duration-moderate) var(--ease-in-out); }
+
+/* ========================================
+   DARK MODE SUPPORT (Optional)
+   ======================================== */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Override tokens for dark mode */
+    /* Uncomment and customize as needed */
+    
+    /* --color-bg-white: #1F2937;
+    --color-bg-light: #111827;
+    --color-text-primary: #F9FAFB;
+    --color-text-secondary: #D1D5DB;
+    --color-border-default: #374151; */
+  }
+}
+
+/* ========================================
+   PRINT STYLES
+   ======================================== */
+
+@media print {
+  :root {
+    --shadow-default: none;
+    --shadow-lg: none;
+    --shadow-xl: none;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+}

@@ -58,3 +58,12 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Frontend (if added in future)
+node_modules/
+.next/
+out/
+dist/
+.cache/
+*.tsbuildinfo
+.parcel-cache/
