@@ -50,9 +50,19 @@ class MockScraperService:
     
     async def fetch_product_details(self, url: str) -> dict:
         """Mock fetch product details."""
+        # Return different data based on URL for testing
+        if "on-sale" in url:
+            return {
+                "name": "Test Product On Sale",
+                "price": 799.99,
+                "is_on_sale": True,
+                "original_price": 999.99
+            }
         return {
             "name": "Test Product",
-            "price": 999.99
+            "price": 999.99,
+            "is_on_sale": False,
+            "original_price": None
         }
     
     async def search_site(self, site: str, query: str, limit: int = 10):
@@ -63,7 +73,9 @@ class MockScraperService:
                 name=f"Test Product {i+1}",
                 price=100.0 * (i + 1),
                 product_url=f"https://www.alza.cz/test-product-{i+1}",
-                image_url=f"https://cdn.alza.cz/test-{i+1}.jpg"
+                image_url=f"https://cdn.alza.cz/test-{i+1}.jpg",
+                is_on_sale=(i == 1),  # Second product is on sale
+                original_price=150.0 if i == 1 else None
             )
             for i in range(min(3, limit))
         ]
