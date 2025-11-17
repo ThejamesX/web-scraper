@@ -2,6 +2,7 @@
 
 import logging
 import re
+import asyncio
 from typing import Optional
 from bs4 import BeautifulSoup
 import httpx
@@ -20,12 +21,17 @@ class ScraperService:
         self.client: Optional[httpx.AsyncClient] = None
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Language': 'cs-CZ,cs;q=0.9,en-US;q=0.8,en;q=0.7',
             'Accept-Encoding': 'gzip, deflate, br',
             'DNT': '1',
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Cache-Control': 'max-age=0',
         }
     
     async def initialize(self):
@@ -45,6 +51,63 @@ class ScraperService:
         if self.client:
             await self.client.aclose()
         logger.info("HTTP client closed successfully")
+    
+    async def _make_request_with_retry(self, url: str, max_retries: int = 3) -> httpx.Response:
+        """
+        Make an HTTP request with retry logic for better reliability.
+        
+        Args:
+            url: URL to request
+            max_retries: Maximum number of retry attempts
+            
+        Returns:
+            httpx.Response: Successful response
+            
+        Raises:
+            httpx.HTTPStatusError: If request fails after all retries
+            httpx.ConnectError: If connection fails
+            httpx.TimeoutException: If request times out
+        """
+        for attempt in range(max_retries):
+            try:
+                # Add a small delay between retries to avoid rate limiting
+                if attempt > 0:
+                    delay = min(2 ** attempt, 8)  # Exponential backoff, max 8 seconds
+                    logger.debug(f"Retry attempt {attempt + 1}/{max_retries} after {delay}s delay")
+                    await asyncio.sleep(delay)
+                
+                # Create custom headers for this request
+                request_headers = self.headers.copy()
+                
+                # Add Referer header for subsequent requests
+                if 'alza.cz' in url:
+                    request_headers['Referer'] = 'https://www.alza.cz/'
+                elif 'smarty.cz' in url:
+                    request_headers['Referer'] = 'https://www.smarty.cz/'
+                elif 'allegro.pl' in url:
+                    request_headers['Referer'] = 'https://allegro.pl/'
+                
+                response = await self.client.get(url, headers=request_headers)
+                response.raise_for_status()
+                return response
+                
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 403:
+                    logger.warning(f"HTTP 403 Forbidden on attempt {attempt + 1}/{max_retries}")
+                    if attempt < max_retries - 1:
+                        continue
+                raise
+            except (httpx.ConnectError, httpx.TimeoutException):
+                if attempt < max_retries - 1:
+                    continue
+                raise
+        
+        # This should not be reached, but just in case
+        raise httpx.HTTPStatusError(
+            f"Failed after {max_retries} attempts",
+            request=None,
+            response=None
+        )
     
     @staticmethod
     def _extract_price_from_text(price_text: str) -> Optional[float]:
@@ -99,8 +162,7 @@ class ScraperService:
         
         try:
             try:
-                response = await self.client.get(url)
-                response.raise_for_status()
+                response = await self._make_request_with_retry(url)
             except httpx.ConnectError as e:
                 # If mock mode is enabled, return mock data
                 if settings.scraper_mock_mode:
@@ -117,6 +179,8 @@ class ScraperService:
                     "Please try again in a few moments."
                 )
             except httpx.HTTPStatusError as e:
+                if settings.scraper_mock_mode:
+                    return self._get_mock_product_details(url)
                 raise ValueError(f"Unable to load product page: HTTP {e.response.status_code}")
             
             soup = BeautifulSoup(response.text, 'lxml')
@@ -463,8 +527,7 @@ class ScraperService:
         try:
             # Build search URL
             search_url = f"https://www.alza.cz/search.htm?extext={query.replace(' ', '+')}"
-            response = await self.client.get(search_url)
-            response.raise_for_status()
+            response = await self._make_request_with_retry(search_url)
         except httpx.ConnectError:
             if settings.scraper_mock_mode:
                 logger.info("Network error for Alza.cz, using mock data (mock mode enabled)")
@@ -479,6 +542,9 @@ class ScraperService:
                 "Please try again in a few moments."
             )
         except httpx.HTTPStatusError as e:
+            if settings.scraper_mock_mode:
+                logger.info(f"HTTP error for Alza.cz (status {e.response.status_code}), using mock data (mock mode enabled)")
+                return self._get_mock_search_results(query, limit)
             raise ValueError(f"Failed to access Alza.cz: HTTP {e.response.status_code}")
         
         soup = BeautifulSoup(response.text, 'lxml')
@@ -567,8 +633,7 @@ class ScraperService:
         """
         try:
             search_url = f"https://www.smarty.cz/search.html?q={query.replace(' ', '+')}"
-            response = await self.client.get(search_url)
-            response.raise_for_status()
+            response = await self._make_request_with_retry(search_url)
         except httpx.ConnectError:
             if settings.scraper_mock_mode:
                 logger.info("Network error for Smarty.cz, using mock data (mock mode enabled)")
@@ -582,6 +647,9 @@ class ScraperService:
                 "Smarty.cz is not responding. Please try again in a few moments."
             )
         except httpx.HTTPStatusError as e:
+            if settings.scraper_mock_mode:
+                logger.info(f"HTTP error for Smarty.cz (status {e.response.status_code}), using mock data (mock mode enabled)")
+                return self._get_mock_search_results(query, limit)
             raise ValueError(f"Failed to access Smarty.cz: HTTP {e.response.status_code}")
         
         soup = BeautifulSoup(response.text, 'lxml')
@@ -652,8 +720,7 @@ class ScraperService:
         """
         try:
             search_url = f"https://allegro.pl/listing?string={query.replace(' ', '+')}"
-            response = await self.client.get(search_url)
-            response.raise_for_status()
+            response = await self._make_request_with_retry(search_url)
         except httpx.ConnectError:
             if settings.scraper_mock_mode:
                 logger.info("Network error for Allegro.pl, using mock data (mock mode enabled)")
@@ -667,6 +734,9 @@ class ScraperService:
                 "Allegro.pl is not responding. Please try again in a few moments."
             )
         except httpx.HTTPStatusError as e:
+            if settings.scraper_mock_mode:
+                logger.info(f"HTTP error for Allegro.pl (status {e.response.status_code}), using mock data (mock mode enabled)")
+                return self._get_mock_search_results(query, limit)
             raise ValueError(f"Failed to access Allegro.pl: HTTP {e.response.status_code}")
         
         soup = BeautifulSoup(response.text, 'lxml')
