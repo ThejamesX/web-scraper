@@ -202,7 +202,15 @@ web-scraper/
 
 ## 🎯 Recent Improvements
 
-### Improved Web Scraping (Latest)
+### Anti-Bot Protection & Reliability (Latest)
+- **Enhanced HTTP Headers**: Added realistic browser headers including Sec-Fetch-* headers and Czech language preference
+- **Automatic Retry Logic**: Implements exponential backoff with random jitter for failed requests
+- **Smart Rate Limiting**: Random delays between requests to appear more human-like
+- **Session Management**: Maintains cookies across requests for better compatibility
+- **Fallback to Mock Mode**: Automatically uses mock data when sites are blocking requests (if enabled)
+- **Comprehensive 403 Guide**: Added [TROUBLESHOOTING_403.md](TROUBLESHOOTING_403.md) for handling blocked requests
+
+### Improved Web Scraping
 - **New Scraping Engine**: Replaced Playwright with BeautifulSoup4 + httpx for better reliability
 - **5x Faster**: Direct HTTP requests eliminate browser overhead
 - **More Reliable**: No browser automation = fewer network-related failures
@@ -395,11 +403,13 @@ Production environment variables:
 - Verify backend is running and accessible
 - Check CORS settings in `main.py`
 
-### Search Not Working
+### Search Not Working / HTTP 403 Errors
+- **NEW**: See [TROUBLESHOOTING_403.md](TROUBLESHOOTING_403.md) for a comprehensive guide on fixing HTTP 403 Forbidden errors
+- The scraper includes automatic retry logic with exponential backoff for better reliability
 - Check internet connectivity
 - Verify the e-commerce site is accessible
 - Check logs for specific error messages
-- **For testing without internet access**: Set `SCRAPER_MOCK_MODE=true` in your `.env` file to use mock data
+- **For testing without internet access or persistent 403 errors**: Set `SCRAPER_MOCK_MODE=true` in your `.env` file to use mock data
 
 ### Price Updates Not Happening
 - Check that the scheduler is running (you should see "Scheduler started" in logs)

@@ -3,6 +3,7 @@
 import logging
 import re
 import asyncio
+import random
 from typing import Optional
 from bs4 import BeautifulSoup
 import httpx
@@ -70,11 +71,16 @@ class ScraperService:
         """
         for attempt in range(max_retries):
             try:
-                # Add a small delay between retries to avoid rate limiting
+                # Add a small random delay between retries to avoid rate limiting and appear more human-like
                 if attempt > 0:
-                    delay = min(2 ** attempt, 8)  # Exponential backoff, max 8 seconds
-                    logger.debug(f"Retry attempt {attempt + 1}/{max_retries} after {delay}s delay")
+                    base_delay = min(2 ** attempt, 8)  # Exponential backoff, max 8 seconds
+                    # Add random jitter (0.5x to 1.5x of base delay)
+                    delay = base_delay * (0.5 + random.random())
+                    logger.debug(f"Retry attempt {attempt + 1}/{max_retries} after {delay:.2f}s delay")
                     await asyncio.sleep(delay)
+                else:
+                    # Even on first attempt, add a small random delay (0-500ms) to appear more natural
+                    await asyncio.sleep(random.random() * 0.5)
                 
                 # Create custom headers for this request
                 request_headers = self.headers.copy()
@@ -93,7 +99,7 @@ class ScraperService:
                 
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 403:
-                    logger.warning(f"HTTP 403 Forbidden on attempt {attempt + 1}/{max_retries}")
+                    logger.warning(f"HTTP 403 Forbidden on attempt {attempt + 1}/{max_retries} for {url}")
                     if attempt < max_retries - 1:
                         continue
                 raise
