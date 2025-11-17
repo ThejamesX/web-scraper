@@ -102,6 +102,8 @@ async def test_check_all_product_prices_changed_price():
     mock_result = MagicMock()
     mock_result.scalars.return_value.all.return_value = [mock_product]
     mock_db.execute.return_value = mock_result
+    # db.add() is synchronous, not async
+    mock_db.add = MagicMock()
     
     # Mock scraper service to return different price
     mock_scraper = AsyncMock()
@@ -207,6 +209,8 @@ async def test_check_all_product_prices_triggers_alert():
     mock_result = MagicMock()
     mock_result.scalars.return_value.all.return_value = [mock_product]
     mock_db.execute.return_value = mock_result
+    # db.add() is synchronous, not async
+    mock_db.add = MagicMock()
     
     # Mock scraper service to return price below alert threshold
     mock_scraper = AsyncMock()
@@ -297,6 +301,8 @@ async def test_check_all_product_prices_updates_sale_status():
     mock_result = MagicMock()
     mock_result.scalars.return_value.all.return_value = [mock_product]
     mock_db.execute.return_value = mock_result
+    # db.add() is synchronous, not async
+    mock_db.add = MagicMock()
     
     # Mock scraper service to return product now on sale
     mock_scraper = AsyncMock()

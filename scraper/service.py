@@ -80,6 +80,10 @@ class ScraperService:
         if not self.browser:
             await self.initialize()
         
+        # Check if the URL is from a supported e-shop BEFORE attempting to navigate
+        if "alza.cz" not in url.lower():
+            raise ValueError(f"Unsupported e-shop URL: {url}")
+        
         page = await self.browser.new_page()
         try:
             try:
@@ -105,13 +109,10 @@ class ScraperService:
                 else:
                     raise ValueError(f"Unable to load product page: {error_msg}")
             
-            # Determine which e-shop and use appropriate selectors
-            if "alza.cz" in url:
-                result = await self._fetch_alza_product_details(page)
-                logger.info(f"Successfully fetched product: {result['name']}")
-                return result
-            else:
-                raise ValueError(f"Unsupported e-shop URL: {url}")
+            # Fetch product details from Alza.cz
+            result = await self._fetch_alza_product_details(page)
+            logger.info(f"Successfully fetched product: {result['name']}")
+            return result
         finally:
             await page.close()
     
