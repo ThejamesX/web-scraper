@@ -99,6 +99,7 @@ async def test_check_all_product_prices_changed_price():
     
     # Mock database session
     mock_db = AsyncMock()
+    mock_db.add = MagicMock()  # add() is synchronous in SQLAlchemy
     mock_result = MagicMock()
     mock_result.scalars.return_value.all.return_value = [mock_product]
     mock_db.execute.return_value = mock_result
@@ -204,6 +205,7 @@ async def test_check_all_product_prices_triggers_alert():
     
     # Mock database session
     mock_db = AsyncMock()
+    mock_db.add = MagicMock()  # add() is synchronous in SQLAlchemy
     mock_result = MagicMock()
     mock_result.scalars.return_value.all.return_value = [mock_product]
     mock_db.execute.return_value = mock_result
@@ -294,6 +296,7 @@ async def test_check_all_product_prices_updates_sale_status():
     
     # Mock database session
     mock_db = AsyncMock()
+    mock_db.add = MagicMock()  # add() is synchronous in SQLAlchemy
     mock_result = MagicMock()
     mock_result.scalars.return_value.all.return_value = [mock_product]
     mock_db.execute.return_value = mock_result
