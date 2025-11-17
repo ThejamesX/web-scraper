@@ -3,9 +3,9 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-43%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-60%20passed-brightgreen.svg)](tests/)
 
-A complete e-commerce price tracking solution with a modern web UI and robust FastAPI backend. Track prices across multiple e-commerce sites (currently supports Alza.cz), get notified when prices drop, and organize products into categories.
+A complete e-commerce price tracking solution with a modern web UI and robust FastAPI backend. Track prices across multiple e-commerce sites (supports Alza.cz, Smarty.cz, and Allegro.pl), get notified when prices drop, and organize products into categories.
 
 ## 📚 Documentation
 
@@ -85,7 +85,7 @@ The application includes comprehensive test coverage including a soundbar search
 - **Statistics Dashboard**: View lowest/highest prices, price changes, and sale frequency
 
 ### Backend (API)
-- **Product Search**: Search e-commerce sites (currently supports Alza.cz) for products
+- **Product Search**: Search e-commerce sites (Alza.cz, Smarty.cz, Allegro.pl) for products
 - **Price Tracking**: Track product URLs and monitor price changes over time
 - **Sale Detection**: Automatically detect when products are on sale and track original prices
 - **Price Alerts**: Set custom price alerts and get notified when prices drop
@@ -110,7 +110,7 @@ The frontend follows a comprehensive design system:
 
 ### Search for Products
 1. Navigate to the "Search" tab
-2. Select the e-commerce site (Alza.cz)
+2. Select the e-commerce site (Alza.cz, Smarty.cz, or Allegro.pl)
 3. Enter your search query (e.g., "soundbar", "laptop")
 4. Click "Track" on products you want to monitor
 
@@ -418,7 +418,7 @@ Contributions are welcome! Please:
 ## Future Enhancements
 
 Potential features to add:
-- [ ] Support for more e-commerce sites (Smarty.cz, Amazon, etc.)
+- [ ] Support for more e-commerce sites (Amazon, eBay, etc.)
 - [ ] Email/push notifications for price alerts
 - [ ] User authentication and multi-user support
 - [ ] Export data to CSV/Excel
@@ -426,6 +426,19 @@ Potential features to add:
 - [ ] Historical price trend analysis
 - [ ] Wishlist sharing functionality
 - [ ] Browser extension for quick tracking
+
+## Currently Supported E-commerce Sites
+
+✅ **Alza.cz** - Czech electronics and gadgets retailer  
+✅ **Smarty.cz** - Czech electronics and appliances store  
+✅ **Allegro.pl** - Polish marketplace (largest in Poland)
+
+The scraper features:
+- Multi-site support with site-specific handlers
+- Robust price extraction with multiple fallback patterns
+- Automatic sale detection and original price tracking
+- Error handling with user-friendly messages
+- Mock mode for testing without internet access
 
 ## License
 
