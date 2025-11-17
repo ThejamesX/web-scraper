@@ -1,42 +1,50 @@
-"""Web scraping service using Playwright."""
+"""Web scraping service using BeautifulSoup and httpx."""
 
 import logging
 import re
 from typing import Optional
-from playwright.async_api import async_playwright, Browser, Page, Playwright, Error as PlaywrightError, TimeoutError as PlaywrightTimeoutError
+from bs4 import BeautifulSoup
+import httpx
 from core.config import settings
 from api.schemas import SearchResultItem
-from scraper.site_handlers import get_site_handler
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 
 class ScraperService:
-    """Service for scraping e-commerce sites using Playwright."""
+    """Service for scraping e-commerce sites using BeautifulSoup and httpx."""
     
     def __init__(self):
         """Initialize the scraper service."""
-        self.playwright: Optional[Playwright] = None
-        self.browser: Optional[Browser] = None
+        self.client: Optional[httpx.AsyncClient] = None
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+        }
     
     async def initialize(self):
-        """Launch Playwright and browser."""
-        logger.info("Initializing Playwright browser...")
-        self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(
-            headless=settings.scraper_headless
+        """Initialize the HTTP client."""
+        logger.info("Initializing HTTP client...")
+        self.client = httpx.AsyncClient(
+            headers=self.headers,
+            timeout=httpx.Timeout(settings.scraper_timeout / 1000.0),  # Convert ms to seconds
+            follow_redirects=True,
+            verify=True
         )
-        logger.info("Browser initialized successfully")
+        logger.info("HTTP client initialized successfully")
     
     async def close(self):
-        """Close browser and Playwright."""
-        logger.info("Closing browser and Playwright...")
-        if self.browser:
-            await self.browser.close()
-        if self.playwright:
-            await self.playwright.stop()
-        logger.info("Browser closed successfully")
+        """Close HTTP client."""
+        logger.info("Closing HTTP client...")
+        if self.client:
+            await self.client.aclose()
+        logger.info("HTTP client closed successfully")
     
     @staticmethod
     def _extract_price_from_text(price_text: str) -> Optional[float]:
@@ -78,78 +86,70 @@ class ScraperService:
             Exception: If product details cannot be extracted
         """
         logger.info(f"Fetching product details from: {url}")
-        if not self.browser:
+        if not self.client:
             await self.initialize()
         
-        page = await self.browser.new_page()
         try:
             try:
-                await page.goto(url, timeout=settings.scraper_timeout)
-            except PlaywrightError as e:
-                error_msg = str(e)
-                if "ERR_NAME_NOT_RESOLVED" in error_msg or "net::" in error_msg:
-                    # If mock mode is enabled, return mock data
-                    if settings.scraper_mock_mode:
-                        await page.close()
-                        return self._get_mock_product_details(url)
-                    raise ValueError(
-                        f"Cannot reach the website at {url}. "
-                        "Please check your internet connection or try again later. "
-                        "The website might be temporarily unavailable."
-                    )
-                elif "Timeout" in error_msg or "timeout" in error_msg:
-                    raise ValueError(
-                        f"The website at {url} is taking too long to respond. "
-                        "This could be due to slow internet connection or high server load. "
-                        "Please try again in a few moments."
-                    )
-                else:
-                    raise ValueError(f"Unable to load product page: {error_msg}")
+                response = await self.client.get(url)
+                response.raise_for_status()
+            except httpx.ConnectError as e:
+                # If mock mode is enabled, return mock data
+                if settings.scraper_mock_mode:
+                    return self._get_mock_product_details(url)
+                raise ValueError(
+                    f"Cannot reach the website at {url}. "
+                    "Please check your internet connection or try again later. "
+                    "The website might be temporarily unavailable."
+                )
+            except httpx.TimeoutException:
+                raise ValueError(
+                    f"The website at {url} is taking too long to respond. "
+                    "This could be due to slow internet connection or high server load. "
+                    "Please try again in a few moments."
+                )
+            except httpx.HTTPStatusError as e:
+                raise ValueError(f"Unable to load product page: HTTP {e.response.status_code}")
             
-            # Get the appropriate site handler
-            handler = get_site_handler(url, page)
-            if handler:
-                result = await handler.extract_product_details()
-                logger.info(f"Successfully fetched product: {result['name']}")
-                return result
+            soup = BeautifulSoup(response.text, 'lxml')
+            
+            # Detect site and extract accordingly
+            if "alza.cz" in url:
+                return await self._fetch_alza_product_details(soup)
+            elif "smarty.cz" in url:
+                return await self._fetch_smarty_product_details(soup)
+            elif "allegro.pl" in url:
+                return await self._fetch_allegro_product_details(soup)
             else:
-                # Fallback to legacy method for backward compatibility
-                if "alza.cz" in url:
-                    result = await self._fetch_alza_product_details(page)
-                    logger.info(f"Successfully fetched product: {result['name']}")
-                    return result
-                else:
-                    raise ValueError(
-                        f"Unsupported e-shop URL: {url}. "
-                        f"Currently supported sites: Alza.cz, Smarty.cz, Allegro.pl"
-                    )
-        finally:
-            await page.close()
+                raise ValueError(
+                    f"Unsupported e-shop URL: {url}. "
+                    f"Currently supported sites: Alza.cz, Smarty.cz, Allegro.pl"
+                )
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error fetching product details: {e}")
+            raise ValueError(f"Unable to fetch product details: {str(e)}")
     
-    async def _fetch_alza_product_details(self, page: Page) -> dict:
+    async def _fetch_alza_product_details(self, soup: BeautifulSoup) -> dict:
         """
         Extract product details from Alza.cz product page.
         
         Args:
-            page: Playwright page object
+            soup: BeautifulSoup parsed page
             
         Returns:
             dict: Dictionary with 'name', 'price', 'is_on_sale', and 'original_price' keys
         """
-        # Wait for product name
-        try:
-            await page.wait_for_selector("h1", timeout=10000)
-        except PlaywrightTimeoutError:
+        # Extract product name
+        name_element = soup.find("h1")
+        if not name_element:
             raise ValueError(
                 "The product page did not load correctly. "
                 "This might be because the page structure has changed or the product is no longer available. "
                 "Please verify the URL and try again."
             )
-        
-        # Extract product name
-        name_element = await page.query_selector("h1")
-        name = await name_element.inner_text() if name_element else "Unknown"
-        name = name.strip()
+        name = name_element.get_text(strip=True)
         
         # Initialize sale status
         is_on_sale = False
@@ -158,15 +158,15 @@ class ScraperService:
         # Extract price - try multiple selectors
         price = None
         price_selectors = [
-            ".price-box__price",
-            ".price",
-            "[class*='price']"
+            {"class_": "price-box__price"},
+            {"class_": "price"},
+            {"class_": lambda x: x and 'price' in x}
         ]
         
         for selector in price_selectors:
-            price_element = await page.query_selector(selector)
+            price_element = soup.find(attrs=selector)
             if price_element:
-                price_text = await price_element.inner_text()
+                price_text = price_element.get_text(strip=True)
                 price = self._extract_price_from_text(price_text)
                 if price:
                     break
@@ -181,18 +181,16 @@ class ScraperService:
         # Check for sale/discount indicators
         # Look for crossed-out original price
         strikethrough_selectors = [
-            ".price-box__old-price",
-            ".old-price",
-            "[class*='old-price']",
-            "[class*='strikethrough']",
-            "del",
-            "s"
+            soup.find(class_="price-box__old-price"),
+            soup.find(class_="old-price"),
+            soup.find(class_=lambda x: x and 'old-price' in x),
+            soup.find("del"),
+            soup.find("s")
         ]
         
-        for selector in strikethrough_selectors:
-            old_price_element = await page.query_selector(selector)
+        for old_price_element in strikethrough_selectors:
             if old_price_element:
-                old_price_text = await old_price_element.inner_text()
+                old_price_text = old_price_element.get_text(strip=True)
                 original_price = self._extract_price_from_text(old_price_text)
                 if original_price:
                     is_on_sale = True
@@ -201,23 +199,200 @@ class ScraperService:
         # If no strikethrough price found, check for sale badges/labels
         if not is_on_sale:
             sale_indicators = [
-                ".badge-sale",
-                ".sale-badge",
-                "[class*='sale']",
-                "[class*='discount']",
-                "[class*='akce']"  # Czech for "sale/action"
+                soup.find(class_="badge-sale"),
+                soup.find(class_="sale-badge"),
+                soup.find(class_=lambda x: x and 'sale' in x),
+                soup.find(class_=lambda x: x and 'akce' in x)
             ]
             
-            for selector in sale_indicators:
-                sale_element = await page.query_selector(selector)
+            for sale_element in sale_indicators:
                 if sale_element:
-                    sale_text = await sale_element.inner_text()
-                    sale_text = sale_text.lower()
+                    sale_text = sale_element.get_text(strip=True).lower()
                     # Check if text contains sale indicators
                     if any(word in sale_text for word in ['sale', 'sleva', 'akce', 'discount', 'akční']):
                         is_on_sale = True
                         break
         
+        logger.info(f"Successfully fetched product: {name}")
+        return {
+            "name": name,
+            "price": price,
+            "is_on_sale": is_on_sale,
+            "original_price": original_price
+        }
+    
+    async def _fetch_smarty_product_details(self, soup: BeautifulSoup) -> dict:
+        """
+        Extract product details from Smarty.cz product page.
+        
+        Args:
+            soup: BeautifulSoup parsed page
+            
+        Returns:
+            dict: Dictionary with 'name', 'price', 'is_on_sale', and 'original_price' keys
+        """
+        # Extract product name
+        name_element = soup.find("h1")
+        if not name_element:
+            raise ValueError(
+                "The Smarty.cz product page did not load correctly. "
+                "Please verify the URL and try again."
+            )
+        name = name_element.get_text(strip=True)
+        
+        # Initialize sale status
+        is_on_sale = False
+        original_price = None
+        
+        # Extract price - try multiple selectors for Smarty
+        price = None
+        price_selectors = [
+            {"class_": "price-final"},
+            {"class_": "price-current"},
+            {"class_": "product-price"},
+            {"class_": lambda x: x and 'price' in x}
+        ]
+        
+        for selector in price_selectors:
+            price_element = soup.find(attrs=selector)
+            if price_element:
+                price_text = price_element.get_text(strip=True)
+                price = self._extract_price_from_text(price_text)
+                if price:
+                    break
+        
+        if price is None:
+            raise ValueError(
+                "Unable to find the product price on Smarty.cz. "
+                "The page layout may have changed or the product might not be available."
+            )
+        
+        # Check for sale/discount indicators
+        strikethrough_selectors = [
+            soup.find(class_="price-old"),
+            soup.find(class_="price-original"),
+            soup.find(class_=lambda x: x and 'old-price' in x),
+            soup.find("del"),
+            soup.find("s")
+        ]
+        
+        for old_price_element in strikethrough_selectors:
+            if old_price_element:
+                old_price_text = old_price_element.get_text(strip=True)
+                original_price = self._extract_price_from_text(old_price_text)
+                if original_price:
+                    is_on_sale = True
+                    break
+        
+        # Check for sale badges
+        if not is_on_sale:
+            sale_indicators = [
+                soup.find(class_="badge-sale"),
+                soup.find(class_="label-sale"),
+                soup.find(class_=lambda x: x and 'sale' in x),
+                soup.find(class_=lambda x: x and 'sleva' in x)
+            ]
+            
+            for sale_element in sale_indicators:
+                if sale_element:
+                    sale_text = sale_element.get_text(strip=True).lower()
+                    if any(word in sale_text for word in ['sale', 'sleva', 'akce', 'discount', 'akční']):
+                        is_on_sale = True
+                        break
+        
+        logger.info(f"Successfully fetched product: {name}")
+        return {
+            "name": name,
+            "price": price,
+            "is_on_sale": is_on_sale,
+            "original_price": original_price
+        }
+    
+    async def _fetch_allegro_product_details(self, soup: BeautifulSoup) -> dict:
+        """
+        Extract product details from Allegro.pl product page.
+        
+        Args:
+            soup: BeautifulSoup parsed page
+            
+        Returns:
+            dict: Dictionary with 'name', 'price', 'is_on_sale', and 'original_price' keys
+        """
+        # Extract product name
+        name_element = soup.find("h1")
+        if not name_element:
+            raise ValueError(
+                "The Allegro.pl product page did not load correctly. "
+                "Please verify the URL and try again."
+            )
+        name = name_element.get_text(strip=True)
+        
+        # Initialize sale status
+        is_on_sale = False
+        original_price = None
+        
+        # Extract price - Allegro uses specific selectors
+        price = None
+        price_selectors = [
+            {"attrs": {"data-role": "price"}},
+            {"class_": lambda x: x and 'price' in x},
+            {"name": "meta", "property": "product:price:amount"}
+        ]
+        
+        for selector in price_selectors:
+            if "name" in selector:
+                price_element = soup.find(**selector)
+                if price_element and price_element.get("content"):
+                    price = self._extract_price_from_text(price_element.get("content"))
+                    if price:
+                        break
+            else:
+                price_element = soup.find(**selector)
+                if price_element:
+                    price_text = price_element.get_text(strip=True)
+                    price = self._extract_price_from_text(price_text)
+                    if price:
+                        break
+        
+        if price is None:
+            raise ValueError(
+                "Unable to find the product price on Allegro.pl. "
+                "The page layout may have changed or the product might not be available."
+            )
+        
+        # Check for sale/discount indicators
+        strikethrough_selectors = [
+            soup.find(attrs={"data-role": "old-price"}),
+            soup.find(class_="price-old"),
+            soup.find(class_=lambda x: x and 'old-price' in x),
+            soup.find("del"),
+            soup.find("s")
+        ]
+        
+        for old_price_element in strikethrough_selectors:
+            if old_price_element:
+                old_price_text = old_price_element.get_text(strip=True)
+                original_price = self._extract_price_from_text(old_price_text)
+                if original_price:
+                    is_on_sale = True
+                    break
+        
+        # Check for sale badges
+        if not is_on_sale:
+            sale_indicators = [
+                soup.find(class_=lambda x: x and 'badge' in x),
+                soup.find(class_=lambda x: x and 'promocja' in x),
+                soup.find(class_=lambda x: x and 'sale' in x)
+            ]
+            
+            for sale_element in sale_indicators:
+                if sale_element:
+                    sale_text = sale_element.get_text(strip=True).lower()
+                    if any(word in sale_text for word in ['sale', 'promocja', 'obniżka', 'discount']):
+                        is_on_sale = True
+                        break
+        
+        logger.info(f"Successfully fetched product: {name}")
         return {
             "name": name,
             "price": price,
@@ -241,58 +416,30 @@ class ScraperService:
             ValueError: If site is not supported
         """
         logger.info(f"Searching {site} for '{query}' (limit: {limit})")
-        if not self.browser:
+        if not self.client:
             await self.initialize()
         
         site_lower = site.lower()
         
-        # Map site names to URLs
-        site_urls = {
-            "alza": "https://www.alza.cz/",
-            "smarty": "https://www.smarty.cz/",
-            "allegro": "https://allegro.pl/"
-        }
-        
-        if site_lower not in site_urls:
+        if site_lower not in ["alza", "smarty", "allegro"]:
             raise ValueError(
                 f"Unsupported site: {site}. "
-                f"Supported sites: {', '.join(site_urls.keys())}"
+                f"Supported sites: alza, smarty, allegro"
             )
         
-        page = await self.browser.new_page()
         try:
-            # Navigate to the site
-            await page.goto(site_urls[site_lower], timeout=settings.scraper_timeout)
-            
-            # Get the appropriate handler
-            handler = get_site_handler(site_urls[site_lower], page)
-            if handler:
-                try:
-                    results = await handler.search_products(query, limit)
-                    logger.info(f"Found {len(results)} results for '{query}'")
-                    return results
-                except ValueError as e:
-                    # If mock mode is enabled, return mock data instead of failing
-                    if settings.scraper_mock_mode:
-                        logger.info(f"Using mock data for query '{query}'")
-                        return self._get_mock_search_results(query, limit)
-                    raise
-            else:
-                # Fallback for backward compatibility
-                if site_lower == "alza":
-                    try:
-                        results = await self._search_alza(query, limit)
-                        logger.info(f"Found {len(results)} results for '{query}'")
-                        return results
-                    except ValueError as e:
-                        if settings.scraper_mock_mode:
-                            logger.info(f"Using mock data for query '{query}'")
-                            return self._get_mock_search_results(query, limit)
-                        raise
-                else:
-                    raise ValueError(f"Handler not found for site: {site}")
-        finally:
-            await page.close()
+            if site_lower == "alza":
+                return await self._search_alza(query, limit)
+            elif site_lower == "smarty":
+                return await self._search_smarty(query, limit)
+            elif site_lower == "allegro":
+                return await self._search_allegro(query, limit)
+        except Exception as e:
+            # If mock mode is enabled, return mock data instead of failing
+            if settings.scraper_mock_mode:
+                logger.info(f"Using mock data for query '{query}': {e}")
+                return self._get_mock_search_results(query, limit)
+            raise
     
     async def _search_alza(self, query: str, limit: int = 10) -> list[SearchResultItem]:
         """
@@ -305,113 +452,263 @@ class ScraperService:
         Returns:
             list[SearchResultItem]: Search results
         """
-        page = await self.browser.new_page()
         try:
-            # Navigate to Alza.cz
+            # Build search URL
+            search_url = f"https://www.alza.cz/search.htm?extext={query.replace(' ', '+')}"
+            response = await self.client.get(search_url)
+            response.raise_for_status()
+        except httpx.ConnectError:
+            raise ValueError(
+                "Cannot connect to Alza.cz. "
+                "Please check your internet connection and try again."
+            )
+        except httpx.TimeoutException:
+            raise ValueError(
+                "Alza.cz is not responding. The site may be experiencing high traffic. "
+                "Please try again in a few moments."
+            )
+        except httpx.HTTPStatusError as e:
+            raise ValueError(f"Failed to access Alza.cz: HTTP {e.response.status_code}")
+        
+        soup = BeautifulSoup(response.text, 'lxml')
+        
+        # Get all product boxes
+        product_boxes = soup.find_all(class_=['box browsingitem', 'browsingitem'])
+        if not product_boxes:
+            # Try alternative selector
+            product_boxes = soup.find_all('div', class_=lambda x: x and 'browsingitem' in x)
+        
+        results = []
+        for box in product_boxes[:limit]:
             try:
-                await page.goto("https://www.alza.cz/", timeout=settings.scraper_timeout)
-            except PlaywrightError as e:
-                error_msg = str(e)
-                if "ERR_NAME_NOT_RESOLVED" in error_msg or "net::" in error_msg:
-                    raise ValueError(
-                        "Cannot connect to Alza.cz. "
-                        "Please check your internet connection and try again."
-                    )
-                elif "Timeout" in error_msg or "timeout" in error_msg:
-                    raise ValueError(
-                        "Alza.cz is not responding. The site may be experiencing high traffic. "
-                        "Please try again in a few moments."
-                    )
-                else:
-                    raise ValueError(f"Failed to access Alza.cz: {error_msg}")
-            
-            # Find and fill search input
-            try:
-                search_input = await page.wait_for_selector('input[type="text"][name="extext"]', timeout=10000)
-                await search_input.fill(query)
-                
-                # Submit search
-                await search_input.press("Enter")
-                
-                # Wait for results page
-                await page.wait_for_selector('.box.browsingitem, .browsingitem', timeout=15000)
-            except PlaywrightTimeoutError:
-                raise ValueError(
-                    "Unable to perform search on Alza.cz. "
-                    "The website layout may have changed or the search is taking too long. "
-                    "Please try a different search term or try again later."
-                )
-            
-            # Get all product boxes
-            product_boxes = await page.query_selector_all('.box.browsingitem, .browsingitem')
-            
-            results = []
-            for i, box in enumerate(product_boxes[:limit]):
-                try:
-                    # Extract product name
-                    name_element = await box.query_selector('a.name, .name a')
-                    if not name_element:
-                        continue
-                    name = await name_element.inner_text()
-                    name = name.strip()
-                    
-                    # Extract product URL
-                    product_url = await name_element.get_attribute('href')
-                    if product_url and not product_url.startswith('http'):
-                        product_url = f"https://www.alza.cz{product_url}"
-                    
-                    # Extract price
-                    price_element = await box.query_selector('.price-box__price, .price')
-                    if not price_element:
-                        continue
-                    price_text = await price_element.inner_text()
-                    
-                    # Parse price using helper method
-                    price = self._extract_price_from_text(price_text)
-                    if not price:
-                        continue
-                    
-                    # Extract image URL
-                    image_url = None
-                    img_element = await box.query_selector('img')
-                    if img_element:
-                        image_url = await img_element.get_attribute('src')
-                        if not image_url:
-                            image_url = await img_element.get_attribute('data-src')
-                    
-                    # Check for sale status
-                    is_on_sale = False
-                    original_price = None
-                    
-                    # Look for old/strikethrough price
-                    old_price_element = await box.query_selector('.price-box__old-price, .old-price, del, s')
-                    if old_price_element:
-                        old_price_text = await old_price_element.inner_text()
-                        original_price = self._extract_price_from_text(old_price_text)
-                        if original_price:
-                            is_on_sale = True
-                    
-                    # If no strikethrough price, check for sale badge
-                    if not is_on_sale:
-                        sale_badge = await box.query_selector('.badge-sale, .sale-badge, [class*="sale"], [class*="akce"]')
-                        if sale_badge:
-                            is_on_sale = True
-                    
-                    results.append(SearchResultItem(
-                        name=name,
-                        price=price,
-                        product_url=product_url,
-                        image_url=image_url,
-                        is_on_sale=is_on_sale,
-                        original_price=original_price
-                    ))
-                except Exception as e:
-                    # Skip problematic items
+                # Extract product name
+                name_element = box.find('a', class_='name') or box.find(class_='name').find('a') if box.find(class_='name') else None
+                if not name_element:
                     continue
+                name = name_element.get_text(strip=True)
+                
+                # Extract product URL
+                product_url = name_element.get('href')
+                if product_url and not product_url.startswith('http'):
+                    product_url = f"https://www.alza.cz{product_url}"
+                
+                # Extract price
+                price_element = box.find(class_='price-box__price') or box.find(class_='price')
+                if not price_element:
+                    continue
+                price_text = price_element.get_text(strip=True)
+                
+                # Parse price using helper method
+                price = self._extract_price_from_text(price_text)
+                if not price:
+                    continue
+                
+                # Extract image URL
+                image_url = None
+                img_element = box.find('img')
+                if img_element:
+                    image_url = img_element.get('src') or img_element.get('data-src')
+                
+                # Check for sale status
+                is_on_sale = False
+                original_price = None
+                
+                # Look for old/strikethrough price
+                old_price_element = box.find(class_='price-box__old-price') or box.find(class_='old-price') or box.find('del') or box.find('s')
+                if old_price_element:
+                    old_price_text = old_price_element.get_text(strip=True)
+                    original_price = self._extract_price_from_text(old_price_text)
+                    if original_price:
+                        is_on_sale = True
+                
+                # If no strikethrough price, check for sale badge
+                if not is_on_sale:
+                    sale_badge = box.find(class_=lambda x: x and ('sale' in x or 'akce' in x))
+                    if sale_badge:
+                        is_on_sale = True
+                
+                results.append(SearchResultItem(
+                    name=name,
+                    price=price,
+                    product_url=product_url,
+                    image_url=image_url,
+                    is_on_sale=is_on_sale,
+                    original_price=original_price
+                ))
+            except Exception as e:
+                # Skip problematic items
+                logger.debug(f"Error processing product box: {e}")
+                continue
+        
+        logger.info(f"Found {len(results)} results for '{query}'")
+        return results
+    
+    async def _search_smarty(self, query: str, limit: int = 10) -> list[SearchResultItem]:
+        """
+        Search Smarty.cz for products.
+        
+        Args:
+            query: Search query
+            limit: Maximum number of results
             
-            return results
-        finally:
-            await page.close()
+        Returns:
+            list[SearchResultItem]: Search results
+        """
+        try:
+            search_url = f"https://www.smarty.cz/search.html?q={query.replace(' ', '+')}"
+            response = await self.client.get(search_url)
+            response.raise_for_status()
+        except httpx.ConnectError:
+            raise ValueError(
+                "Cannot connect to Smarty.cz. "
+                "Please check your internet connection and try again."
+            )
+        except httpx.TimeoutException:
+            raise ValueError(
+                "Smarty.cz is not responding. Please try again in a few moments."
+            )
+        except httpx.HTTPStatusError as e:
+            raise ValueError(f"Failed to access Smarty.cz: HTTP {e.response.status_code}")
+        
+        soup = BeautifulSoup(response.text, 'lxml')
+        product_boxes = soup.find_all(class_=lambda x: x and ('product-item' in x or 'product' in x))
+        
+        results = []
+        for box in product_boxes[:limit]:
+            try:
+                name_element = box.find('a', class_=lambda x: x and 'name' in x) or box.find(class_='product-name') or box.find(['h3', 'h2']).find('a') if box.find(['h3', 'h2']) else None
+                if not name_element:
+                    continue
+                name = name_element.get_text(strip=True)
+                
+                product_url = name_element.get('href')
+                if product_url and not product_url.startswith('http'):
+                    product_url = f"https://www.smarty.cz{product_url}"
+                
+                price_element = box.find(class_=lambda x: x and 'price' in x)
+                if not price_element:
+                    continue
+                price = self._extract_price_from_text(price_element.get_text(strip=True))
+                if not price:
+                    continue
+                
+                image_url = None
+                img_element = box.find('img')
+                if img_element:
+                    image_url = img_element.get('src') or img_element.get('data-src')
+                
+                is_on_sale = False
+                original_price = None
+                old_price_element = box.find(class_=lambda x: x and ('old' in x or 'original' in x)) or box.find('del') or box.find('s')
+                if old_price_element:
+                    original_price = self._extract_price_from_text(old_price_element.get_text(strip=True))
+                    if original_price:
+                        is_on_sale = True
+                
+                if not is_on_sale:
+                    sale_badge = box.find(class_=lambda x: x and 'sale' in x)
+                    if sale_badge:
+                        is_on_sale = True
+                
+                results.append(SearchResultItem(
+                    name=name,
+                    price=price,
+                    product_url=product_url,
+                    image_url=image_url,
+                    is_on_sale=is_on_sale,
+                    original_price=original_price
+                ))
+            except Exception as e:
+                logger.debug(f"Error processing product box: {e}")
+                continue
+        
+        logger.info(f"Found {len(results)} results for '{query}'")
+        return results
+    
+    async def _search_allegro(self, query: str, limit: int = 10) -> list[SearchResultItem]:
+        """
+        Search Allegro.pl for products.
+        
+        Args:
+            query: Search query
+            limit: Maximum number of results
+            
+        Returns:
+            list[SearchResultItem]: Search results
+        """
+        try:
+            search_url = f"https://allegro.pl/listing?string={query.replace(' ', '+')}"
+            response = await self.client.get(search_url)
+            response.raise_for_status()
+        except httpx.ConnectError:
+            raise ValueError(
+                "Cannot connect to Allegro.pl. "
+                "Please check your internet connection and try again."
+            )
+        except httpx.TimeoutException:
+            raise ValueError(
+                "Allegro.pl is not responding. Please try again in a few moments."
+            )
+        except httpx.HTTPStatusError as e:
+            raise ValueError(f"Failed to access Allegro.pl: HTTP {e.response.status_code}")
+        
+        soup = BeautifulSoup(response.text, 'lxml')
+        product_boxes = soup.find_all(['article', 'div'], attrs={"data-role": "offer"})
+        if not product_boxes:
+            product_boxes = soup.find_all(class_=lambda x: x and 'offer' in x)
+        
+        results = []
+        for box in product_boxes[:limit]:
+            try:
+                name_element = box.find('a', class_=lambda x: x and 'name' in x) or box.find(['h2', 'h3']).find('a') if box.find(['h2', 'h3']) else None
+                if not name_element:
+                    continue
+                name = name_element.get_text(strip=True)
+                
+                product_url = name_element.get('href')
+                if product_url and not product_url.startswith('http'):
+                    product_url = f"https://allegro.pl{product_url}"
+                
+                price_element = box.find(attrs={"data-role": "price"}) or box.find(class_=lambda x: x and 'price' in x)
+                if not price_element:
+                    continue
+                price = self._extract_price_from_text(price_element.get_text(strip=True))
+                if not price:
+                    continue
+                
+                image_url = None
+                img_element = box.find('img')
+                if img_element:
+                    image_url = img_element.get('src') or img_element.get('data-src')
+                
+                is_on_sale = False
+                original_price = None
+                old_price_element = box.find(attrs={"data-role": "old-price"}) or box.find(class_='price-old') or box.find('del')
+                if old_price_element:
+                    original_price = self._extract_price_from_text(old_price_element.get_text(strip=True))
+                    if original_price:
+                        is_on_sale = True
+                
+                if not is_on_sale:
+                    sale_badge = box.find(class_=lambda x: x and ('badge' in x or 'promocja' in x))
+                    if sale_badge:
+                        is_on_sale = True
+                
+                results.append(SearchResultItem(
+                    name=name,
+                    price=price,
+                    product_url=product_url,
+                    image_url=image_url,
+                    is_on_sale=is_on_sale,
+                    original_price=original_price
+                ))
+            except Exception as e:
+                logger.debug(f"Error processing product box: {e}")
+                continue
+        
+        logger.info(f"Found {len(results)} results for '{query}'")
+        return results
+    
     
     def _get_mock_search_results(self, query: str, limit: int = 10) -> list[SearchResultItem]:
         """
