@@ -90,7 +90,7 @@ This document outlines potential improvements, new features, and enhancements fo
 
 ### 4. Frontend Performance
 **Priority: Medium**
-- [x] Implement lazy loading for product images
+- [ ] Implement lazy loading for product images
 - [ ] Add pagination for large product lists
 - [ ] Use virtual scrolling for long lists
 - [ ] Optimize bundle size and code splitting
