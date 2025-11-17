@@ -430,7 +430,8 @@ class SmartyHandler(BaseSiteHandler):
                         is_on_sale=is_on_sale,
                         original_price=original_price
                     ))
-                except Exception:
+                except Exception as e:
+                    logger.warning(f"Error processing product box in SmartyHandler.search_products: {e}", exc_info=True)
                     continue
             
             return results
