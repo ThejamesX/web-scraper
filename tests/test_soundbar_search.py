@@ -255,3 +255,99 @@ async def test_soundbar_real_search():
     
     finally:
         await scraper.close()
+
+
+@pytest.mark.slow
+@pytest.mark.asyncio
+async def test_soundbar_real_api_request(test_db):
+    """Test real soundbar search through API endpoint with real scraper (integration test).
+    
+    This test makes an actual API request to the /search endpoint
+    with a real ScraperService that performs actual web scraping on Alza.cz.
+    This validates the complete API flow with real network requests.
+    """
+    from scraper.service import ScraperService
+    
+    # Create a real scraper service instance
+    real_scraper = ScraperService()
+    
+    async def override_get_db():
+        try:
+            yield test_db
+        finally:
+            pass
+    
+    async def override_get_scraper():
+        return real_scraper
+    
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_scraper_service] = override_get_scraper
+    
+    try:
+        # Initialize the real scraper
+        await real_scraper.initialize()
+        
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            # Make a real API request to search for soundbars
+            response = await client.post(
+                "/search",
+                json={
+                    "site": "alza",
+                    "query": "soundbar"
+                }
+            )
+            
+            # Verify response status
+            if response.status_code != 200:
+                print(f"\nAPI Error Response: {response.text}")
+            assert response.status_code == 200, f"API request failed with status {response.status_code}"
+            
+            # Parse response
+            data = response.json()
+            
+            # Verify response structure
+            assert data["query"] == "soundbar", "Query mismatch in response"
+            assert data["site"] == "alza", "Site mismatch in response"
+            assert "results" in data, "Results field missing from response"
+            assert isinstance(data["results"], list), "Results is not a list"
+            
+            # Verify we got actual results from Alza
+            results = data["results"]
+            assert len(results) > 0, "No soundbar results found from API request"
+            assert len(results) <= 10, "Too many results returned (should be max 10)"
+            
+            # Verify first result has all required fields
+            first_result = results[0]
+            assert "name" in first_result, "Name field missing"
+            assert "price" in first_result, "Price field missing"
+            assert "product_url" in first_result, "Product URL field missing"
+            assert "image_url" in first_result, "Image URL field missing"
+            assert "is_on_sale" in first_result, "is_on_sale field missing"
+            
+            # Verify field values
+            assert isinstance(first_result["name"], str), "Name is not a string"
+            assert len(first_result["name"]) > 0, "Name is empty"
+            assert isinstance(first_result["price"], (int, float)), "Price is not a number"
+            assert first_result["price"] > 0, "Price is not positive"
+            assert isinstance(first_result["product_url"], str), "Product URL is not a string"
+            assert "alza.cz" in first_result["product_url"].lower(), "Product URL is not from Alza"
+            assert isinstance(first_result["is_on_sale"], bool), "is_on_sale is not a boolean"
+            
+            # Verify the product name contains soundbar-related terms
+            name_lower = first_result["name"].lower()
+            assert any(term in name_lower for term in ["soundbar", "sound bar", "reproduktor", "soundbar"]), \
+                f"Result '{first_result['name']}' doesn't appear to be a soundbar"
+            
+            # Print results for verification
+            print(f"\n✓ API returned {len(results)} soundbar results from Alza:")
+            for i, result in enumerate(results, 1):
+                sale_status = " [ON SALE]" if result.get("is_on_sale", False) else ""
+                orig_price = f" (was {result.get('original_price')} Kč)" if result.get("original_price") else ""
+                print(f"  {i}. {result['name']}")
+                print(f"     Price: {result['price']} Kč{sale_status}{orig_price}")
+                print(f"     URL: {result['product_url']}")
+    
+    finally:
+        # Clean up
+        await real_scraper.close()
+        app.dependency_overrides.clear()
