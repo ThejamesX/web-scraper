@@ -5,6 +5,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 from db.models import Base
+from core.config import settings
 
 
 # Test database URL (in-memory SQLite)
@@ -85,3 +86,19 @@ class MockScraperService:
 def mock_scraper():
     """Create a mock scraper service."""
     return MockScraperService()
+
+
+@pytest.fixture(scope="function", autouse=True)
+def enable_mock_mode_for_slow_tests(request):
+    """Enable mock mode for tests marked as 'slow' to allow them to run without real network access."""
+    # Check if the test is marked with 'slow'
+    if 'slow' in [mark.name for mark in request.node.iter_markers()]:
+        # Save original value
+        original_value = settings.scraper_mock_mode
+        # Enable mock mode for slow tests
+        settings.scraper_mock_mode = True
+        yield
+        # Restore original value after test
+        settings.scraper_mock_mode = original_value
+    else:
+        yield

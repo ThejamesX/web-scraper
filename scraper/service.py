@@ -89,6 +89,14 @@ class ScraperService:
         if not self.client:
             await self.initialize()
         
+        # Check if the site is supported before making network requests
+        supported_sites = ["alza.cz", "smarty.cz", "allegro.pl"]
+        if not any(site in url.lower() for site in supported_sites):
+            raise ValueError(
+                f"Unsupported e-shop URL: {url}. "
+                f"Currently supported sites: Alza.cz, Smarty.cz, Allegro.pl"
+            )
+        
         try:
             try:
                 response = await self.client.get(url)
@@ -458,6 +466,9 @@ class ScraperService:
             response = await self.client.get(search_url)
             response.raise_for_status()
         except httpx.ConnectError:
+            if settings.scraper_mock_mode:
+                logger.info("Network error for Alza.cz, using mock data (mock mode enabled)")
+                return self._get_mock_search_results(query, limit)
             raise ValueError(
                 "Cannot connect to Alza.cz. "
                 "Please check your internet connection and try again."
@@ -559,6 +570,9 @@ class ScraperService:
             response = await self.client.get(search_url)
             response.raise_for_status()
         except httpx.ConnectError:
+            if settings.scraper_mock_mode:
+                logger.info("Network error for Smarty.cz, using mock data (mock mode enabled)")
+                return self._get_mock_search_results(query, limit)
             raise ValueError(
                 "Cannot connect to Smarty.cz. "
                 "Please check your internet connection and try again."
@@ -641,6 +655,9 @@ class ScraperService:
             response = await self.client.get(search_url)
             response.raise_for_status()
         except httpx.ConnectError:
+            if settings.scraper_mock_mode:
+                logger.info("Network error for Allegro.pl, using mock data (mock mode enabled)")
+                return self._get_mock_search_results(query, limit)
             raise ValueError(
                 "Cannot connect to Allegro.pl. "
                 "Please check your internet connection and try again."
