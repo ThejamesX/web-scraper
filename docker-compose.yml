@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # PriceScout web application
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://pricescout:pricescout@db:5432/pricescout
+      - SCRAPER_HEADLESS=true
+      - SCRAPER_MOCK_MODE=false
+      - PRICE_CHECK_INTERVAL_HOURS=4
+    volumes:
+      # Mount code for development (remove in production)
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - pricescout-network
+
+  # PostgreSQL database
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=pricescout
+      - POSTGRES_PASSWORD=pricescout
+      - POSTGRES_DB=pricescout
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pricescout"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - pricescout-network
+
+  # Redis cache (optional, for future use)
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   restart: unless-stopped
+  #   networks:
+  #     - pricescout-network
+
+volumes:
+  postgres_data:
+  # redis_data:
+
+networks:
+  pricescout-network:
+    driver: bridge

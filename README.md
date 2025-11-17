@@ -1,6 +1,52 @@
 # PriceScout - Smart Price Tracking Platform
 
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-43%20passed-brightgreen.svg)](tests/)
+
 A complete e-commerce price tracking solution with a modern web UI and robust FastAPI backend. Track prices across multiple e-commerce sites (currently supports Alza.cz), get notified when prices drop, and organize products into categories.
+
+## 📚 Documentation
+
+- **[Architecture](ARCHITECTURE.md)** - System design and technical architecture
+- **[Deployment Guide](DEPLOYMENT.md)** - Production deployment instructions
+- **[Contributing](CONTRIBUTING.md)** - How to contribute to the project
+- **[Future Roadmap](FUTURE_WORK.md)** - Planned features and enhancements
+
+## ⚡ Quick Start
+
+### Option 1: Using Helper Script (Recommended)
+
+```bash
+git clone <repository-url>
+cd web-scraper
+./scripts/dev.sh setup    # Set up environment
+./scripts/dev.sh start    # Start development server
+```
+
+### Option 2: Using Docker
+
+```bash
+git clone <repository-url>
+cd web-scraper
+docker-compose up -d
+# Access at http://localhost:8000
+```
+
+### Option 3: Manual Setup
+
+```bash
+git clone <repository-url>
+cd web-scraper
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+playwright install chromium
+cp .env.example .env
+uvicorn main:app --reload
+# Access at http://localhost:8000
+```
 
 ## 🌟 Features
 
