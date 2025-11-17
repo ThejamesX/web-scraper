@@ -6,6 +6,7 @@ from typing import Optional
 from playwright.async_api import async_playwright, Browser, Page, Playwright, Error as PlaywrightError, TimeoutError as PlaywrightTimeoutError
 from core.config import settings
 from api.schemas import SearchResultItem
+from scraper.site_handlers import get_site_handler
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -105,13 +106,23 @@ class ScraperService:
                 else:
                     raise ValueError(f"Unable to load product page: {error_msg}")
             
-            # Determine which e-shop and use appropriate selectors
-            if "alza.cz" in url:
-                result = await self._fetch_alza_product_details(page)
+            # Get the appropriate site handler
+            handler = get_site_handler(url, page)
+            if handler:
+                result = await handler.extract_product_details()
                 logger.info(f"Successfully fetched product: {result['name']}")
                 return result
             else:
-                raise ValueError(f"Unsupported e-shop URL: {url}")
+                # Fallback to legacy method for backward compatibility
+                if "alza.cz" in url:
+                    result = await self._fetch_alza_product_details(page)
+                    logger.info(f"Successfully fetched product: {result['name']}")
+                    return result
+                else:
+                    raise ValueError(
+                        f"Unsupported e-shop URL: {url}. "
+                        f"Currently supported sites: Alza.cz, Smarty.cz, Allegro.pl"
+                    )
         finally:
             await page.close()
     
@@ -219,7 +230,7 @@ class ScraperService:
         Search an e-commerce site for products.
         
         Args:
-            site: E-commerce site name (e.g., 'alza')
+            site: E-commerce site name (e.g., 'alza', 'smarty', 'allegro')
             query: Search query
             limit: Maximum number of results to return (default: 10)
             
@@ -233,19 +244,55 @@ class ScraperService:
         if not self.browser:
             await self.initialize()
         
-        if site.lower() == "alza":
-            try:
-                results = await self._search_alza(query, limit)
-                logger.info(f"Found {len(results)} results for '{query}'")
-                return results
-            except ValueError as e:
-                # If mock mode is enabled, return mock data instead of failing
-                if settings.scraper_mock_mode:
-                    logger.info(f"Using mock data for query '{query}'")
-                    return self._get_mock_search_results(query, limit)
-                raise
-        else:
-            raise ValueError(f"Unsupported site: {site}")
+        site_lower = site.lower()
+        
+        # Map site names to URLs
+        site_urls = {
+            "alza": "https://www.alza.cz/",
+            "smarty": "https://www.smarty.cz/",
+            "allegro": "https://allegro.pl/"
+        }
+        
+        if site_lower not in site_urls:
+            raise ValueError(
+                f"Unsupported site: {site}. "
+                f"Supported sites: {', '.join(site_urls.keys())}"
+            )
+        
+        page = await self.browser.new_page()
+        try:
+            # Navigate to the site
+            await page.goto(site_urls[site_lower], timeout=settings.scraper_timeout)
+            
+            # Get the appropriate handler
+            handler = get_site_handler(site_urls[site_lower], page)
+            if handler:
+                try:
+                    results = await handler.search_products(query, limit)
+                    logger.info(f"Found {len(results)} results for '{query}'")
+                    return results
+                except ValueError as e:
+                    # If mock mode is enabled, return mock data instead of failing
+                    if settings.scraper_mock_mode:
+                        logger.info(f"Using mock data for query '{query}'")
+                        return self._get_mock_search_results(query, limit)
+                    raise
+            else:
+                # Fallback for backward compatibility
+                if site_lower == "alza":
+                    try:
+                        results = await self._search_alza(query, limit)
+                        logger.info(f"Found {len(results)} results for '{query}'")
+                        return results
+                    except ValueError as e:
+                        if settings.scraper_mock_mode:
+                            logger.info(f"Using mock data for query '{query}'")
+                            return self._get_mock_search_results(query, limit)
+                        raise
+                else:
+                    raise ValueError(f"Handler not found for site: {site}")
+        finally:
+            await page.close()
     
     async def _search_alza(self, query: str, limit: int = 10) -> list[SearchResultItem]:
         """
