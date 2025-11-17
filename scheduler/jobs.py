@@ -1,10 +1,14 @@
 """Background jobs for scheduled tasks."""
 
+import logging
 from datetime import datetime, timezone
 from sqlalchemy import select
 from db import AsyncSessionLocal
 from db.models import Product, PriceHistory
 from scraper.service import get_scraper_service
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 async def check_all_product_prices():
@@ -16,6 +20,7 @@ async def check_all_product_prices():
     2. Fetches current price for each product
     3. Compares with last_known_price
     4. If different, creates new PriceHistory entry and updates product
+    5. Checks and triggers price alerts when conditions are met
     """
     async with AsyncSessionLocal() as db:
         try:
@@ -26,15 +31,22 @@ async def check_all_product_prices():
             products = result.scalars().all()
             
             if not products:
-                print("No products to check")
+                logger.info("No products to check")
                 return
+            
+            logger.info(f"Checking prices for {len(products)} products")
             
             # Get scraper service
             scraper = await get_scraper_service()
             
+            checked_count = 0
+            updated_count = 0
+            alert_count = 0
+            error_count = 0
+            
             for product in products:
                 try:
-                    print(f"Checking price for: {product.name} ({product.url})")
+                    logger.debug(f"Checking price for: {product.name} ({product.url})")
                     
                     # Fetch current product details
                     details = await scraper.fetch_product_details(product.url)
@@ -51,7 +63,7 @@ async def check_all_product_prices():
                     
                     # Check if price has changed
                     if product.last_known_price != current_price:
-                        print(f"Price changed: {product.last_known_price} -> {current_price}")
+                        logger.info(f"Price changed for '{product.name}': {product.last_known_price} -> {current_price}")
                         
                         # Create new price history entry
                         price_entry = PriceHistory(
@@ -65,24 +77,29 @@ async def check_all_product_prices():
                         
                         # Update product's last known price
                         product.last_known_price = current_price
+                        updated_count += 1
                     else:
-                        print(f"Price unchanged: {current_price}")
+                        logger.debug(f"Price unchanged for '{product.name}': {current_price}")
                     
                     # Check if price alert should be triggered
                     if product.alert_price is not None and not product.alert_triggered:
                         if current_price <= product.alert_price:
-                            print(f"Alert triggered! Price {current_price} <= target {product.alert_price}")
+                            logger.info(f"Alert triggered for '{product.name}'! Price {current_price} <= target {product.alert_price}")
                             product.alert_triggered = True
+                            alert_count += 1
+                    
+                    checked_count += 1
                     
                 except Exception as e:
-                    print(f"Error checking product {product.id}: {str(e)}")
+                    logger.error(f"Error checking product {product.id} ({product.name}): {str(e)}", exc_info=True)
+                    error_count += 1
                     # Continue with next product even if one fails
                     continue
             
             # Commit all changes
             await db.commit()
-            print("Price check completed")
+            logger.info(f"Price check completed: {checked_count} checked, {updated_count} updated, {alert_count} alerts triggered, {error_count} errors")
             
         except Exception as e:
-            print(f"Error in price check job: {str(e)}")
+            logger.error(f"Critical error in price check job: {str(e)}", exc_info=True)
             await db.rollback()
