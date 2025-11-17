@@ -49,16 +49,19 @@ async def track_product(
     if existing_product:
         raise HTTPException(
             status_code=400,
-            detail="Product URL is already being tracked"
+            detail=f"This product is already being tracked. You can view it in your dashboard."
         )
     
     # Fetch product details
     try:
         details = await scraper.fetch_product_details(product_data.url)
+    except ValueError as e:
+        # User-friendly error from scraper
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to fetch product details: {str(e)}"
+            detail=f"Unable to fetch product information. Please verify the URL is correct and try again. Error: {str(e)}"
         )
     
     # Determine e-shop from URL
@@ -129,7 +132,10 @@ async def get_product_history(
     product = result.scalar_one_or_none()
     
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Product with ID {product_id} not found. Unable to retrieve price history."
+        )
     
     # Sort price history by timestamp (newest first)
     history = sorted(
@@ -195,7 +201,10 @@ async def get_product(
     product = result.scalar_one_or_none()
     
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Product with ID {product_id} not found in your tracked products."
+        )
     
     return product
 
@@ -231,7 +240,10 @@ async def set_price_alert(
     product = result.scalar_one_or_none()
     
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Product with ID {product_id} not found. Unable to set price alert."
+        )
     
     # Update alert settings
     product.alert_price = alert_data.target_price
@@ -275,7 +287,10 @@ async def clear_price_alert(
     product = result.scalar_one_or_none()
     
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Product with ID {product_id} not found. Unable to clear price alert."
+        )
     
     # Clear alert settings
     product.alert_price = None

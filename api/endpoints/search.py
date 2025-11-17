@@ -43,6 +43,11 @@ async def search_products(
             results=results
         )
     except ValueError as e:
+        # User-friendly error messages from the scraper service
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+        # Unexpected errors - provide a helpful message
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred while searching. Please try again later. Error: {str(e)}"
+        )
